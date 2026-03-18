@@ -1,0 +1,9 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="DBZ">
+    <output-path>$PROJECT_DIR$/out/artifacts/DBZ</output-path>
+    <root id="archive" name="DBZ.jar">
+      <element id="file-copy" path="$PROJECT_DIR$/src/main/resources/plugin.yml" />
+      <element id="module-output" name="DBZ.main" />
+    </root>
+  </artifact>
+</component>

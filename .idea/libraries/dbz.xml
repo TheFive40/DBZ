@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="dbz">
+    <CLASSES>
+      <root url="file://$USER_HOME$/Downloads/dbz" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES>
+      <root url="file://$USER_HOME$/Downloads/dbz" />
+    </SOURCES>
+    <jarDirectory url="file://$USER_HOME$/Downloads/dbz" recursive="false" />
+    <jarDirectory url="file://$USER_HOME$/Downloads/dbz" recursive="false" type="SOURCES" />
+  </library>
+</component>
