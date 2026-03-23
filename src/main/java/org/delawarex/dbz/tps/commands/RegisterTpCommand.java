@@ -52,13 +52,14 @@ public class RegisterTpCommand extends BaseCommand {
             case "register" -> {
                 try {
                     int amount = Integer.parseInt(command.getArgs(1));
-                    ItemStack item = player.getItemInHand();
+                    ItemStack item = player.getInventory().getItemInMainHand();
                     ItemMeta meta = item.getItemMeta();
 
                     meta.setDisplayName(CC.translate("&a+" + amount + " TPS"));
                     meta.setLore(List.of(
                             CC.translate("&eAl presionar clic derecho al aire."),
                             CC.translate("&eConsumiras &6+" + amount + " Tps"),
+                            CC.translate("&f"),
                             CC.translate("&C&l㊙ ITEM CONSUMIBLE")
                     ));
                     item.setItemMeta(meta);

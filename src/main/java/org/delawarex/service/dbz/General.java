@@ -5,8 +5,13 @@ import com.dragonminez.common.network.S2C.StatsSyncS2C;
 import com.dragonminez.common.stats.StatsCapability;
 import com.dragonminez.common.stats.StatsProvider;
 import net.minecraft.server.level.ServerPlayer;
+import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.Sound;
+import org.bukkit.World;
 import org.bukkit.craftbukkit.v1_20_R1.entity.CraftPlayer;
+import org.bukkit.entity.ArmorStand;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.delawarex.dbz.DbzMain;
 import org.delawarex.service.CC;
@@ -26,43 +31,91 @@ public class General {
 
     public static void addEnergyEffect(Player player, String operation, double value) {
         StatsProvider.get(StatsCapability.INSTANCE, ((CraftPlayer) player).getHandle()).ifPresent(stats -> {
+
             if (operation.equals("*")) {
-                stats.getStats().addEnergy((int) (stats.getMaxEnergy() * value));
+                int current = stats.getResources().getCurrentEnergy();
+                int max = stats.getMaxEnergy();
+                int newEnergy = (int) Math.min(max, current + (current * (value - 1)));
+                stats.getResources().setCurrentEnergy(newEnergy);
             } else if (operation.equals("+")) {
-                stats.getStats().addEnergy((int) (stats.getMaxEnergy() + value));
+                int current = stats.getResources().getCurrentEnergy();
+                int max = stats.getMaxEnergy();
+                int newEnergy = (int) Math.min(max, current + value);
+                stats.getResources().setCurrentEnergy(newEnergy);
             } else if (operation.equals("-")) {
-                stats.getStats().addEnergy((int) (stats.getMaxEnergy() - value));
+                int current = stats.getResources().getCurrentEnergy();
+                int max = stats.getMaxEnergy();
+                int newEnergy = (int) Math.min(max, current - value);
+                stats.getResources().setCurrentEnergy(newEnergy);
             } else {
-                stats.getStats().addEnergy((int) (stats.getMaxEnergy() / value));
+                int current = stats.getResources().getCurrentEnergy();
+                int max = stats.getMaxEnergy();
+                int newEnergy = (int) Math.min(max, current / value);
+                stats.getResources().setCurrentEnergy(newEnergy);
             }
+            Location location = player.getLocation();
+            spawnHologram(location, CC.translate("&9⚡"), 25);
         });
     }
 
     public static void addStaminaEffect(Player player, String operation, double value) {
         StatsProvider.get(StatsCapability.INSTANCE, ((CraftPlayer) player).getHandle()).ifPresent(stats -> {
+
             if (operation.equals("*")) {
-                stats.getStats().addResistance((int) (stats.getMaxStamina() * value));
+                int current = stats.getResources().getCurrentStamina();
+                int max = stats.getMaxStamina();
+                int newStamina = (int) Math.min(max, current + (current * (value - 1)));
+                stats.getResources().setCurrentStamina(newStamina);
             } else if (operation.equals("+")) {
-                stats.getStats().addResistance((int) (stats.getMaxStamina() + value));
+                int current = stats.getResources().getCurrentStamina();
+                int max = stats.getMaxStamina();
+                int newStamina = (int) Math.min(max, current + value);
+                stats.getResources().setCurrentStamina(newStamina);
             } else if (operation.equals("-")) {
-                stats.getStats().addResistance((int) (stats.getMaxStamina() - value));
+                int current = stats.getResources().getCurrentStamina();
+                int max = stats.getMaxStamina();
+                int newStamina = (int) Math.min(max, current - value);
+                stats.getResources().setCurrentStamina(newStamina);
             } else {
-                stats.getStats().addResistance((int) (stats.getMaxStamina() / value));
+                int current = stats.getResources().getCurrentStamina();
+                int max = stats.getMaxStamina();
+                int newStamina = (int) Math.min(max, current / value);
+                stats.getResources().setCurrentStamina(newStamina);
             }
+            Location location = player.getLocation();
+            location.add(location.getX(), 0.4, 0.2);
+            spawnHologram(location, CC.translate("&e❃"), 25);
         });
     }
+
     public static void addHealthEffect(Player player, String operation, double value) {
         StatsProvider.get(StatsCapability.INSTANCE, ((CraftPlayer) player).getHandle()).ifPresent(stats -> {
             if (operation.equals("*")) {
-                stats.getStats().addVitality((int) (stats.getMaxHealth() * value));
+                player.setHealth(Math.min(player.getMaxHealth(), player.getHealth() + (player.getHealth() * (value - 1))));
             } else if (operation.equals("+")) {
-                stats.getStats().addVitality((int) (stats.getMaxHealth() + value));
+                player.setHealth(Math.min(player.getMaxHealth(), player.getHealth() + value));
             } else if (operation.equals("-")) {
-                stats.getStats().addVitality((int) (stats.getMaxHealth() - value));
+                player.setHealth(Math.min(player.getMaxHealth(), player.getHealth() - value));
             } else {
-                stats.getStats().addVitality((int) (stats.getMaxHealth() / value));
+                player.setHealth(Math.min(player.getMaxHealth(), player.getHealth() / value));
             }
+            Location location = player.getLocation();
+            location.add(location.getX(), 0.1, 0.5);
+            spawnHologram(location, CC.translate("&c❤"), 25);
         });
+    }
+
+    public static void spawnHologram(Location location, String text, int durationTicks) {
+        World world = location.getWorld();
+        if (world == null) return;
+        ArmorStand hologram = (ArmorStand) world.spawnEntity(location, EntityType.ARMOR_STAND);
+        hologram.setVisible(false);
+        hologram.setGravity(false);
+        hologram.setCanPickupItems(false);
+        hologram.setCustomName(text);
+        hologram.setCustomNameVisible(true);
+        hologram.setMarker(true);
+        Bukkit.getScheduler().runTaskLater(DbzMain.instance, hologram::remove, durationTicks);
     }
 
     public static void addTp(String username, int amount) {
@@ -77,11 +130,24 @@ public class General {
             ref.total = statsData.getResources().getTrainingPoints();
             NetworkHandler.sendToTrackingEntityAndSelf(new StatsSyncS2C(serverPlayer), serverPlayer);
         }));
-        player.sendMessage(CC.translate("&8&l&m-----------------------------"));
-        player.sendMessage(CC.translate("&aTotal de TPS: &6+" + ref.total));
-        player.sendMessage(CC.translate("&aBooster: &6+" + 0));
-        player.sendMessage(CC.translate("&aTPS: &6+" + amount));
-        player.sendMessage(CC.translate("&8&l&m-----------------------------"));
+        player.sendMessage(CC.translate("&8&m━━━━━━━━━━━━━━━━━━━━━━━━━━━━"));
+        player.sendMessage(CC.translate("&6&l⚡ TPS OBTENIDOS ⚡"));
+        player.sendMessage("");
+
+        player.sendMessage(CC.translate("  &eTPs Base: &a+" + amount));
+        player.sendMessage(CC.translate("  &eBonus: &6+" + 0)); // aquí luego metes booster real
+        player.sendMessage(CC.translate("  &eTotal: &b+" + ref.total + " TPs"));
+        player.sendMessage("");
+        double booster = 0;
+
+        if (booster > 1.0) {
+            String percent = String.format("%.0f%%", (booster - 1.0) * 100);
+            player.sendMessage(CC.translate("  &6⚡ Booster: &a+" + percent));
+        }
+        double mult = 1.0;
+        String totalPercent = String.format("%.0f%%", (mult - 1.0) * 100);
+        player.sendMessage(CC.translate("  &a⚡ Multiplicador Total: &6x" + String.format("%.2f", mult) + " &7(+" + totalPercent + ")"));
+        player.sendMessage(CC.translate("&8&m━━━━━━━━━━━━━━━━━━━━━━━━━━━━"));
         player.playSound(player, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 10f, 10f);
     }
 }
