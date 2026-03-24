@@ -78,7 +78,15 @@ public class CustomArmorManager {
             meta.setLore(lore);
         }
 
-        meta.setUnbreakable(armor.isUnbreakable());
+        // FIX: Si hay durabilidad custom activa, el item NO puede ser vanilla-unbreakable
+        // porque Bukkit no dispara PlayerItemDamageEvent en items irrompibles vanilla.
+        // El flag isUnbreakable() del modelo solo aplica cuando NO hay custom durability.
+        if (armor.getMaxDurability() > 0) {
+            meta.setUnbreakable(false);
+        } else {
+            meta.setUnbreakable(armor.isUnbreakable());
+        }
+
         stack.setItemMeta(meta);
 
         // Aplicar durabilidad custom si está configurada
