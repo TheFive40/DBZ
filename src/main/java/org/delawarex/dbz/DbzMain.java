@@ -1,11 +1,16 @@
 package org.delawarex.dbz;
 
+import org.bukkit.Bukkit;
+import org.bukkit.World;
+import org.bukkit.entity.ArmorStand;
+import org.bukkit.entity.Entity;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.delawarex.dbz.customitems.CustomItemsModule;
-import org.delawarex.dbz.tps.managers.SerializeTpsManager;
 import org.delawarex.dbz.tps.managers.TpManager;
 import org.delawarex.service.ClassesRegistration;
 import org.delawarex.service.commands.CommandFramework;
+
+import static org.delawarex.service.dbz.General.HOLOGRAMS;
 
 public final class DbzMain extends JavaPlugin {
 
@@ -16,19 +21,34 @@ public final class DbzMain extends JavaPlugin {
     @Override
     public void onEnable() {
         instance = this;
+        saveDefaultConfig();
 
         classesRegistration.loadCommands("org.delawarex.dbz.tps.commands");
         classesRegistration.loadListeners("org.delawarex.dbz.tps.events");
-        SerializeTpsManager.loadAll();
+        new TpManager().loadAll();
 
         CustomItemsModule.enable();
+        for (World world : Bukkit.getWorlds()) {
+            for (Entity entity : world.getEntities()) {
+                if (entity instanceof ArmorStand) {
+                    ArmorStand as = (ArmorStand) entity;
+
+                    if (as.isMarker() && as.getCustomName() != null) {
+                        as.remove();
+                    }
+                }
+            }
+        }
     }
 
     @Override
     public void onDisable() {
-        TpManager manager = new TpManager();
-        manager.saveAll();
-        CustomItemsModule.disable();
+        for (ArmorStand holo : HOLOGRAMS) {
+            if (holo != null && !holo.isDead()) {
+                holo.remove();
+            }
+        }
+        HOLOGRAMS.clear();
     }
 
     public CommandFramework getCommandFramework()       { return commandFramework; }

@@ -6,6 +6,7 @@ import org.bukkit.entity.Player;
 import org.delawarex.dbz.DbzMain;
 import org.delawarex.dbz.customitems.events.ChatInput;
 import org.delawarex.dbz.customitems.managers.CustomItemManager;
+import org.delawarex.dbz.customitems.managers.CustomDurabilityManager;
 import org.delawarex.dbz.customitems.menus.Menu;
 import org.delawarex.dbz.customitems.models.CustomItem;
 import org.delawarex.dbz.customitems.utils.PastebinReader;
@@ -21,7 +22,7 @@ public class ItemEditMenu extends Menu {
     public ItemEditMenu(String itemId) { this.itemId = itemId; }
 
     @Override protected String getTitle() { return "&c&lEditar Item: &f"; }
-    @Override protected int getRows()     { return 5; }
+    @Override protected int getRows()     { return 6; }
 
     @Override
     protected void buildContents(Player player) {
@@ -29,12 +30,19 @@ public class ItemEditMenu extends Menu {
         CustomItem item = CustomItemManager.getInstance().get(itemId);
         if (item == null) { player.closeInventory(); return; }
 
-        // Info
+        // ── Fila 1 ─ Info ───────────────────────────────────────────────────
+
         set(4, item(Material.PAPER,
                 "&7ID: &f" + item.getId(),
                 "&7Material: &f" + item.getMaterial(),
                 "&7Nombre: &f" + item.getDisplayName(),
-                "&7Lore: &f" + (item.getLore() != null ? item.getLore().size() : 0) + " líneas"));
+                "&7Lore: &f" + (item.getLore() != null ? item.getLore().size() : 0) + " líneas",
+                "&7Cmds: &f" + item.getCommands().size(),
+                "&7TP: &f" + item.getTpValue(),
+                "&7Durabilidad: &f" + (item.getMaxDurability() > 0 ? item.getMaxDurability() : "Sin límite"),
+                "&7Activo: &f" + item.isActive()));
+
+        // ── Fila 2 ─ Edición básica ──────────────────────────────────────────
 
         // Renombrar
         set(10, item(Material.NAME_TAG,
@@ -44,7 +52,7 @@ public class ItemEditMenu extends Menu {
                 e -> ChatInput.await(player, "Nuevo nombre (soporta &colores):", (p, text) -> {
                     item.setDisplayName(CC.translate(text));
                     CustomItemManager.getInstance().update(item);
-                    p.sendMessage(CC.translate("&aHombre actualizado."));
+                    p.sendMessage(CC.translate("&aNombre actualizado."));
                     new ItemEditMenu(itemId).open(p);
                 }));
 
@@ -55,14 +63,13 @@ public class ItemEditMenu extends Menu {
                         "",
                         "&7Pega la URL de Pastebin",
                         "&7Ej: pastebin.com/xxxxxxxx",
-                        "&7Soporta códigos &col&a o r e s",
                         "", "&a[CLICK]"),
                 e -> pastebin(player, item));
 
         // Limpiar lore
         set(12, item(Material.WRITABLE_BOOK,
                         "&cLimpiar Lore",
-                        "&7Elimina todas las líneas",
+                        "&7Elimina todas las líneas de lore",
                         "", "&c[CLICK]"),
                 e -> {
                     item.setLore(new ArrayList<>());
@@ -95,12 +102,15 @@ public class ItemEditMenu extends Menu {
         set(14, item(Material.BLAZE_POWDER, "&6Efectos", effLines.toArray(new String[0])),
                 e -> new ItemEffectMenu(itemId).open(player));
 
-        // Consumible toggle
+        // ── Fila 3 ─ Toggles y configuraciones ──────────────────────────────
+
+        // Consumible
         set(19, item(Material.APPLE,
                         "&a&lConsumible",
-                        "&7El item se consume al usarlo",
+                        "&7El item se consume al usarlo.",
                         "",
-                        item.isConsumable() ? "&a✔ ACTIVADO &8[CLICK desactivar]"
+                        item.isConsumable()
+                                ? "&a✔ ACTIVADO &8[CLICK desactivar]"
                                 : "&c✘ DESACTIVADO &8[CLICK activar]"),
                 e -> {
                     item.setConsumable(!item.isConsumable());
@@ -108,11 +118,12 @@ public class ItemEditMenu extends Menu {
                     new ItemEditMenu(itemId).open(player);
                 });
 
-        // Irrompible toggle
+        // Irrompible
         set(20, item(Material.BEDROCK,
                         "&b&lIrrompible",
                         "",
-                        item.isUnbreakable() ? "&a✔ ACTIVADO &8[CLICK desactivar]"
+                        item.isUnbreakable()
+                                ? "&a✔ ACTIVADO &8[CLICK desactivar]"
                                 : "&c✘ DESACTIVADO &8[CLICK activar]"),
                 e -> {
                     item.setUnbreakable(!item.isUnbreakable());
@@ -123,11 +134,11 @@ public class ItemEditMenu extends Menu {
         // TP Value
         set(21, item(Material.EXPERIENCE_BOTTLE,
                         "&b&lTP: &f" + item.getTpValue(),
-                        "&7TPs al consumir",
+                        "&7TPs al consumir el item.",
                         "", "&a[CLICK]"),
-                e -> ChatInput.await(player, "Valor de TP:", (p, text) -> {
+                e -> ChatInput.await(player, "Valor de TP (0 para desactivar):", (p, text) -> {
                     try {
-                        item.setTpValue(Integer.parseInt(text));
+                        item.setTpValue(Math.max(0, Integer.parseInt(text.trim())));
                         CustomItemManager.getInstance().update(item);
                         p.sendMessage(CC.translate("&aTP: &f" + item.getTpValue()));
                     } catch (NumberFormatException ex) {
@@ -139,13 +150,41 @@ public class ItemEditMenu extends Menu {
         // Comandos
         set(22, item(Material.COMMAND_BLOCK,
                         "&e&lComandos: &f" + item.getCommands().size(),
-                        "&7Ejecutados al consumir",
+                        "&7Ejecutados al consumir el item.",
                         "&7@dp = quien usa, @p = objetivo",
                         "", "&a[CLICK gestionar]"),
                 e -> new ItemCommandMenu(itemId).open(player));
 
+        // Durabilidad personalizada
+        int currentMaxDur = item.getMaxDurability();
+        set(23, item(Material.ANVIL,
+                        "&d&lDurabilidad Personalizada",
+                        "&7Bindea usos custom a la barra vanilla.",
+                        "&7Al agotarse el item se destruye.",
+                        "",
+                        "&7Max actual: &f" + (currentMaxDur > 0 ? currentMaxDur + " usos" : "Sin límite"),
+                        "",
+                        "&a[CLICK para configurar]",
+                        "&7(Escribe 0 para desactivar)"),
+                e -> ChatInput.await(player,
+                        "Durabilidad máxima (0 = desactivar):",
+                        (p, text) -> {
+                            try {
+                                int max = Integer.parseInt(text.trim());
+                                if (max < 0) throw new NumberFormatException();
+                                item.setMaxDurability(max > 0 ? max : -1);
+                                CustomItemManager.getInstance().update(item);
+                                p.sendMessage(CC.translate(max > 0
+                                        ? "&aDurabilidad: &f" + max + " usos."
+                                        : "&aDurabilidad custom desactivada."));
+                            } catch (NumberFormatException ex) {
+                                p.sendMessage(CC.translate("&cNúmero inválido."));
+                            }
+                            new ItemEditMenu(itemId).open(p);
+                        }));
+
         // Dar item
-        set(24, item(Material.CHEST,
+        set(25, item(Material.CHEST,
                         "&a&lDar a mí",
                         "", "&a[CLICK]"),
                 e -> {
@@ -153,8 +192,26 @@ public class ItemEditMenu extends Menu {
                     player.sendMessage(CC.translate("&aItem entregado."));
                 });
 
-        // Eliminar
-        set(34, item(Material.TNT,
+        // ── Fila 4 ─ Estado activo / inactivo ───────────────────────────────
+
+        // Activo (stats de mano aplican o no)
+        set(28, item(item.isActive() ? Material.LIME_DYE : Material.GRAY_DYE,
+                        "&f&lEstado del item",
+                        "&7Cuando está inactivo las stats",
+                        "&7de mano NO se aplican.",
+                        "",
+                        item.isActive()
+                                ? "&a✔ ACTIVO &8[CLICK desactivar]"
+                                : "&c✘ INACTIVO &8[CLICK activar]"),
+                e -> {
+                    item.setActive(!item.isActive());
+                    CustomItemManager.getInstance().update(item);
+                    new ItemEditMenu(itemId).open(player);
+                });
+
+        // ── Fila 5 ─ Eliminar ────────────────────────────────────────────────
+
+        set(43, item(Material.TNT,
                         "&c&lEliminar",
                         "&cIrreversible",
                         "", "&c[CLICK]"),
@@ -164,7 +221,9 @@ public class ItemEditMenu extends Menu {
                     new ItemListMenu(1).open(player);
                 });
 
-        set(36, back(), e -> new ItemListMenu(1).open(player));
+        // ── Fila 6 ─ Navegación ──────────────────────────────────────────────
+
+        set(45, back(), e -> new ItemListMenu(1).open(player));
     }
 
     /* ── Pastebin lore ── */
@@ -175,11 +234,9 @@ public class ItemEditMenu extends Menu {
                 (p, url) -> {
                     p.sendMessage(CC.translate("&7Descargando desde Pastebin..."));
 
-                    // HTTP call must run async to avoid blocking the main thread
                     Bukkit.getScheduler().runTaskAsynchronously(DbzMain.instance, () -> {
                         List<String> lines = PastebinReader.download(url);
 
-                        // Apply result back on main thread
                         Bukkit.getScheduler().runTask(DbzMain.instance, () -> {
                             if (lines == null || lines.isEmpty()) {
                                 p.sendMessage(CC.translate("&c✗ No se pudo descargar el contenido."));
@@ -188,7 +245,6 @@ public class ItemEditMenu extends Menu {
                                 return;
                             }
 
-                            // Translate color codes from each line
                             List<String> translated = new ArrayList<>();
                             for (String line : lines)
                                 translated.add(CC.translate(line));

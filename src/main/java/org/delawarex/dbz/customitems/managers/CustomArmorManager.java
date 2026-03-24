@@ -80,6 +80,12 @@ public class CustomArmorManager {
 
         meta.setUnbreakable(armor.isUnbreakable());
         stack.setItemMeta(meta);
+
+        // Aplicar durabilidad custom si está configurada
+        if (armor.getMaxDurability() > 0) {
+            CustomDurabilityManager.setCustomMaxDurability(stack, armor.getMaxDurability());
+        }
+
         return stack;
     }
 
@@ -98,7 +104,15 @@ public class CustomArmorManager {
             ItemMeta meta = stack.getItemMeta();
             if (meta != null) {
                 if (meta.hasDisplayName()) displayName = meta.getDisplayName();
-                if (meta.hasLore() && meta.getLore() != null) lore = meta.getLore();
+                if (meta.hasLore() && meta.getLore() != null) {
+                    // Filtrar línea de durabilidad para no interferir con la identificación
+                    for (String line : meta.getLore()) {
+                        String clean = org.bukkit.ChatColor.stripColor(line);
+                        if (clean != null && !clean.trim().matches("^\\d+/\\d+ \\(\\d+%\\)$")) {
+                            lore.add(line);
+                        }
+                    }
+                }
             }
         }
 

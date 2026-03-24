@@ -1,5 +1,4 @@
 package org.delawarex.dbz.customitems.menus.armor;
-
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -28,17 +27,16 @@ public class ArmorEditMenu extends Menu {
         fillBorder();
         CustomArmor armor = CustomArmorManager.getInstance().get(armorId);
         if (armor == null) { player.closeInventory(); return; }
-
-        // Info
         set(4, item(Material.PAPER,
                 "&7ID: &f" + armorId,
                 "&7Material: &f" + armor.getMaterial(),
                 "&7Nombre: &f" + armor.getDisplayName(),
                 "&7Lore: &f" + (armor.getLore() != null ? armor.getLore().size() : 0) + " líneas",
                 "&7Stats: &f" + armor.getValueByStat().size(),
-                "&7Efectos: &f" + armor.getEffects().size()));
+                "&7Efectos: &f" + armor.getEffects().size(),
+                "&7Durabilidad: &f" + (armor.getMaxDurability() > 0 ? armor.getMaxDurability() : "Sin límite")));
 
-        // Renombrar
+
         set(10, item(Material.NAME_TAG,
                         "&eRenombrar",
                         "&7Actual: &f" + armor.getDisplayName(),
@@ -50,7 +48,6 @@ public class ArmorEditMenu extends Menu {
                     new ArmorEditMenu(armorId).open(p);
                 }));
 
-        // Lore desde Pastebin
         set(11, item(Material.BOOK,
                         "&dLore desde Pastebin",
                         "&7Líneas actuales: &f" + (armor.getLore() != null ? armor.getLore().size() : 0),
@@ -61,10 +58,9 @@ public class ArmorEditMenu extends Menu {
                         "", "&a[CLICK]"),
                 e -> pastebin(player, armor));
 
-        // Limpiar lore
         set(12, item(Material.WRITABLE_BOOK,
                         "&cLimpiar Lore",
-                        "&7Elimina todas las líneas",
+                        "&7Elimina todas las líneas de lore",
                         "", "&c[CLICK]"),
                 e -> {
                     armor.setLore(new ArrayList<>());
@@ -73,7 +69,6 @@ public class ArmorEditMenu extends Menu {
                     new ArmorEditMenu(armorId).open(player);
                 });
 
-        // Stats
         List<String> statLines = new ArrayList<>();
         if (armor.getValueByStat().isEmpty()) {
             statLines.add("&7Sin estadísticas");
@@ -97,11 +92,12 @@ public class ArmorEditMenu extends Menu {
         set(14, item(Material.BLAZE_POWDER, "&6Efectos", effLines.toArray(new String[0])),
                 e -> new ArmorEffectMenu(armorId).open(player));
 
-        // Irrompible
-        set(20, item(Material.BEDROCK,
+
+        set(19, item(Material.BEDROCK,
                         "&b&lIrrompible",
                         "",
-                        armor.isUnbreakable() ? "&a✔ ACTIVADO &8[CLICK desactivar]"
+                        armor.isUnbreakable()
+                                ? "&a✔ ACTIVADO &8[CLICK desactivar]"
                                 : "&c✘ DESACTIVADO &8[CLICK activar]"),
                 e -> {
                     armor.setUnbreakable(!armor.isUnbreakable());
@@ -109,7 +105,33 @@ public class ArmorEditMenu extends Menu {
                     new ArmorEditMenu(armorId).open(player);
                 });
 
-        // Dar armadura
+        int currentMaxDur = armor.getMaxDurability();
+        set(20, item(Material.ANVIL,
+                        "&d&lDurabilidad Personalizada",
+                        "&7Bindea usos custom a la barra vanilla.",
+                        "&7Al agotarse el item se destruye.",
+                        "",
+                        "&7Max actual: &f" + (currentMaxDur > 0 ? currentMaxDur + " usos" : "Sin límite"),
+                        "",
+                        "&a[CLICK para configurar]",
+                        "&7(Escribe 0 para desactivar)"),
+                e -> ChatInput.await(player,
+                        "Durabilidad máxima (0 = desactivar):",
+                        (p, text) -> {
+                            try {
+                                int max = Integer.parseInt(text.trim());
+                                if (max < 0) throw new NumberFormatException();
+                                armor.setMaxDurability(max > 0 ? max : -1);
+                                CustomArmorManager.getInstance().update(armor);
+                                p.sendMessage(CC.translate(max > 0
+                                        ? "&aDurabilidad: &f" + max + " usos."
+                                        : "&aDurabilidad custom desactivada."));
+                            } catch (NumberFormatException ex) {
+                                p.sendMessage(CC.translate("&cNúmero inválido."));
+                            }
+                            new ArmorEditMenu(armorId).open(p);
+                        }));
+
         set(24, item(Material.CHEST,
                         "&a&lDar a mí",
                         "", "&a[CLICK]"),
@@ -118,7 +140,7 @@ public class ArmorEditMenu extends Menu {
                     player.sendMessage(CC.translate("&aArmadura entregada."));
                 });
 
-        // Eliminar
+
         set(34, item(Material.TNT,
                         "&c&lEliminar",
                         "&cIrreversible",
@@ -129,10 +151,9 @@ public class ArmorEditMenu extends Menu {
                     new ArmorListMenu(1).open(player);
                 });
 
+
         set(36, back(), e -> new ArmorListMenu(1).open(player));
     }
-
-    /* ── Pastebin lore ── */
 
     private void pastebin(Player player, CustomArmor armor) {
         ChatInput.await(player,

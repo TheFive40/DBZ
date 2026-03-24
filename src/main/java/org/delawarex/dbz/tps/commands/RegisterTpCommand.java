@@ -1,5 +1,6 @@
 package org.delawarex.dbz.tps.commands;
 
+import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -26,9 +27,15 @@ public class RegisterTpCommand extends BaseCommand {
 
             case "give" -> {
                 try {
-                    player = DbzMain.instance.getServer().getPlayer(command.getArgs(1));
+                    Player target = DbzMain.instance.getServer().getPlayer(command.getArgs(1));
                     int value = Integer.parseInt(command.getArgs(2));
                     int amount = Integer.parseInt(command.getArgs(3));
+
+                    if (target == null) {
+                        player.sendMessage(CC.translate("&8[&c&l!&8] &cJugador no encontrado."));
+                        player.playSound(player, Sound.ENTITY_CAT_HURT, 1.0f, 1.0f);
+                        break;
+                    }
 
                     if (tpManager.give(value) == null) {
                         player.sendMessage(CC.translate("&8[&c&l!&8] &cEl valor del TP no existe."));
@@ -39,7 +46,7 @@ public class RegisterTpCommand extends BaseCommand {
                     for (int i = 0; i < amount; i += 64) {
                         ItemStack stack = tpManager.give(value).clone();
                         stack.setAmount(Math.min(64, amount - i));
-                        player.getInventory().addItem(stack);
+                        target.getInventory().addItem(stack);
                     }
                     player.playSound(player, Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
 
@@ -53,7 +60,21 @@ public class RegisterTpCommand extends BaseCommand {
                 try {
                     int amount = Integer.parseInt(command.getArgs(1));
                     ItemStack item = player.getInventory().getItemInMainHand();
-                    ItemMeta meta = item.getItemMeta();
+                    if (item == null || item.getType() == Material.AIR) {
+                        player.sendMessage(CC.translate("&8[&c&l!&8] &cSostén el item que quieres registrar en la mano."));
+                        player.playSound(player, Sound.ENTITY_CAT_HURT, 1.0f, 1.0f);
+                        break;
+                    }
+
+                    ItemStack toRegister = item.clone();
+                    toRegister.setAmount(1);
+
+                    ItemMeta meta = toRegister.getItemMeta();
+                    if (meta == null) {
+                        player.sendMessage(CC.translate("&8[&c&l!&8] &cEste item no soporta metadata."));
+                        player.playSound(player, Sound.ENTITY_CAT_HURT, 1.0f, 1.0f);
+                        break;
+                    }
 
                     meta.setDisplayName(CC.translate("&a+" + amount + " TPS"));
                     meta.setLore(List.of(
@@ -62,13 +83,13 @@ public class RegisterTpCommand extends BaseCommand {
                             CC.translate("&f"),
                             CC.translate("&C&l㊙ ITEM CONSUMIBLE")
                     ));
-                    item.setItemMeta(meta);
+                    toRegister.setItemMeta(meta);
 
-                    tpManager.add(amount, item);
-                    player.sendMessage(CC.translate("&8[&a&l✔&8] &aTP de &6+" + amount + " &aregistrado correctamente."));
+                    tpManager.add(amount, toRegister);
+                    player.sendMessage(CC.translate("&8[&a&l✔&8] &aTP de &6+" + amount + " &aregistrado como &f" + toRegister.getType().name() + "&a."));
                     player.playSound(player, Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
 
-                } catch (Exception ignored) {
+                } catch (Exception e) {
                     player.sendMessage(CC.translate("&8[&c&l!&8] &cUso: /dbtps register <cantidad>"));
                     player.playSound(player, Sound.ENTITY_CAT_HURT, 1.0f, 1.0f);
                 }
@@ -113,6 +134,10 @@ public class RegisterTpCommand extends BaseCommand {
 
                     ItemStack item = tpManager.give(amount).clone();
                     ItemMeta meta = item.getItemMeta();
+                    if (meta == null) {
+                        player.sendMessage(CC.translate("&8[&c&l!&8] &cEl item no tiene metadata."));
+                        break;
+                    }
                     meta.setDisplayName(newName);
                     item.setItemMeta(meta);
 
@@ -125,6 +150,7 @@ public class RegisterTpCommand extends BaseCommand {
                     player.playSound(player, Sound.ENTITY_CAT_HURT, 1.0f, 1.0f);
                 }
             }
+
             case "list" -> {
                 try {
                     int page = command.getArgs().length > 1
@@ -179,9 +205,10 @@ public class RegisterTpCommand extends BaseCommand {
                     player.sendMessage(CC.translate("&8[&c&l!&8] &cUso: /dbtps list [página]"));
                 }
             }
+
             default -> {
                 player.sendMessage(CC.translate("&8[&e&l?&8] &eComandos disponibles:"));
-                player.sendMessage(CC.translate("&7/dbtps give <player> <valor> <cantidad> "));
+                player.sendMessage(CC.translate("&7/dbtps give <player> <valor> <cantidad>"));
                 player.sendMessage(CC.translate("&7/dbtps register <cantidad>"));
                 player.sendMessage(CC.translate("&7/dbtps list [página]"));
                 player.sendMessage(CC.translate("&7/dbtps remove <valor>"));
