@@ -6,6 +6,7 @@ import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.delawarex.dbz.customitems.CustomItemsModule;
+import org.delawarex.dbz.fragments.FragmentsModule;
 import org.delawarex.dbz.tps.managers.TpManager;
 import org.delawarex.service.ClassesRegistration;
 import org.delawarex.service.commands.CommandFramework;
@@ -28,6 +29,30 @@ public final class DbzMain extends JavaPlugin {
         new TpManager().loadAll();
 
         CustomItemsModule.enable();
+        removeAllHolograms();
+        FragmentsModule.enable();
+    }
+
+    @Override
+    public void onDisable() {
+        for (ArmorStand holo : HOLOGRAMS) {
+            if (holo != null && !holo.isDead()) {
+                holo.remove();
+            }
+        }
+        HOLOGRAMS.clear();
+        FragmentsModule.disable();
+    }
+
+    public CommandFramework getCommandFramework() {
+        return commandFramework;
+    }
+
+    public ClassesRegistration getClassesRegistration() {
+        return classesRegistration;
+    }
+
+    public void removeAllHolograms() {
         for (World world : Bukkit.getWorlds()) {
             for (Entity entity : world.getEntities()) {
                 if (entity instanceof ArmorStand) {
@@ -40,17 +65,4 @@ public final class DbzMain extends JavaPlugin {
             }
         }
     }
-
-    @Override
-    public void onDisable() {
-        for (ArmorStand holo : HOLOGRAMS) {
-            if (holo != null && !holo.isDead()) {
-                holo.remove();
-            }
-        }
-        HOLOGRAMS.clear();
-    }
-
-    public CommandFramework getCommandFramework()       { return commandFramework; }
-    public ClassesRegistration getClassesRegistration() { return classesRegistration; }
 }

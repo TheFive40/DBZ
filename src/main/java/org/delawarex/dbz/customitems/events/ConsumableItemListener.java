@@ -1,3 +1,4 @@
+// ConsumableItemListener.java
 package org.delawarex.dbz.customitems.events;
 
 import org.bukkit.Bukkit;
@@ -13,10 +14,6 @@ import org.delawarex.dbz.customitems.managers.CustomItemManager;
 import org.delawarex.dbz.customitems.models.CustomItem;
 import org.delawarex.service.CC;
 
-/**
- * Handles right-click use of consumable CustomItems.
- * Executes commands and grants TPs via the addtp console command.
- */
 public class ConsumableItemListener implements Listener {
 
     @EventHandler
@@ -36,7 +33,7 @@ public class ConsumableItemListener implements Listener {
 
         event.setCancelled(true);
 
-        // Execute commands
+        // Ejecutar comandos primero (no dependen del modo de consumo)
         if (ci.getCommands() != null && !ci.getCommands().isEmpty()) {
             Player nearest = findNearestLookedAt(player);
             for (String cmd : ci.getCommands()) {
@@ -51,34 +48,48 @@ public class ConsumableItemListener implements Listener {
             }
         }
 
-        // Grant TPs
         if (ci.getTpValue() > 0) {
-            int amount = hand.getAmount();
-            int consumed = ci.isTpConsumeStack() ? amount : 1;
-            int totalTp  = ci.getTpValue() * consumed;
+            boolean isSneaking = player.isSneaking();
 
-            Bukkit.dispatchCommand(Bukkit.getConsoleSender(),
-                    "addtp " + player.getName() + " " + totalTp);
+            if (isSneaking) {
+                int totalConsumed = 0;
+                ItemStack[] contents = player.getInventory().getContents();
+                for (ItemStack stack : contents) {
+                    if (stack == null) continue;
+                    CustomItem stackCi = CustomItemManager.getInstance().identify(stack);
+                    if (stackCi != null && stackCi.getId().equals(ci.getId())) {
+                        totalConsumed += stack.getAmount();
+                        stack.setAmount(0);
+                    }
+                }
+                if (totalConsumed == 0) return;
+                Bukkit.dispatchCommand(Bukkit.getConsoleSender(),
+                        "addtp " + player.getName() + " " + (ci.getTpValue() * totalConsumed));
 
-            int remaining = amount - consumed;
-            if (remaining <= 0) hand.setAmount(0);
-            else hand.setAmount(remaining);
+            } else {
+                int amount = hand.getAmount();
+                hand.setAmount(0);
+                Bukkit.dispatchCommand(Bukkit.getConsoleSender(),
+                        "addtp " + player.getName() + " " + (ci.getTpValue() * amount));
+            }
             return;
         }
 
-        // Plain consumable
         if (ci.isConsumable()) {
-            int remaining = hand.getAmount() - 1;
-            if (remaining <= 0) hand.setAmount(0);
-            else hand.setAmount(remaining);
+            if (player.isSneaking()) {
+                hand.setAmount(0);
+            } else {
+                int remaining = hand.getAmount() - 1;
+                if (remaining <= 0) hand.setAmount(0);
+                else hand.setAmount(remaining);
+            }
         }
     }
 
-    /** Returns the player the user is roughly looking at within 6 blocks. */
     private Player findNearestLookedAt(Player source) {
         org.bukkit.util.Vector dir = source.getLocation().getDirection().normalize();
         Player best = null;
-        double bestDot = 0.9; // cos ~26°
+        double bestDot = 0.9;
         for (Player p : source.getWorld().getPlayers()) {
             if (p.equals(source)) continue;
             double dist = source.getLocation().distance(p.getLocation());
