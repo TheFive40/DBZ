@@ -1,9 +1,11 @@
+// DurabilityListener.java
 package org.delawarex.dbz.customitems.events;
 
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.player.PlayerItemDamageEvent;
 import org.bukkit.inventory.ItemStack;
 import org.delawarex.dbz.customitems.managers.CustomArmorManager;
@@ -32,6 +34,23 @@ public class DurabilityListener implements Listener {
             CustomDurabilityManager.setCustomMaxDurability(item, maxDur);
             applyDamage(player, item, event.getDamage());
         }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onAttack(EntityDamageByEntityEvent event) {
+        if (!(event.getDamager() instanceof Player player)) return;
+
+        ItemStack hand = player.getInventory().getItemInMainHand();
+        if (hand == null) return;
+
+        if (!CustomDurabilityManager.hasCustomDurability(hand)) {
+            int maxDur = resolveMaxDurability(hand);
+            if (maxDur <= 0) return;
+            CustomDurabilityManager.setCustomMaxDurability(hand, maxDur);
+        }
+
+        applyDamage(player, hand, 1);
+        player.updateInventory();
     }
 
     private void applyDamage(Player player, ItemStack item, int damage) {
