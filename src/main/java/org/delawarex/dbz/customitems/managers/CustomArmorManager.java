@@ -26,8 +26,6 @@ public class CustomArmorManager {
         return instance;
     }
 
-    /* ── CRUD ── */
-
     public boolean register(CustomArmor armor) {
         if (armors.containsKey(armor.getId())) return false;
         armors.put(armor.getId(), armor);
@@ -57,8 +55,6 @@ public class CustomArmorManager {
         return ids;
     }
 
-    /* ── ItemStack builder ── */
-
     public ItemStack buildItemStack(CustomArmor armor) {
         Material mat = parseMaterial(armor.getMaterial(), Material.IRON_CHESTPLATE);
 
@@ -78,18 +74,10 @@ public class CustomArmorManager {
             meta.setLore(lore);
         }
 
-        // FIX: Si hay durabilidad custom activa, el item NO puede ser vanilla-unbreakable
-        // porque Bukkit no dispara PlayerItemDamageEvent en items irrompibles vanilla.
-        // El flag isUnbreakable() del modelo solo aplica cuando NO hay custom durability.
-        if (armor.getMaxDurability() > 0) {
-            meta.setUnbreakable(false);
-        } else {
-            meta.setUnbreakable(armor.isUnbreakable());
-        }
+        meta.setUnbreakable(armor.isUnbreakable());
 
         stack.setItemMeta(meta);
 
-        // Aplicar durabilidad custom si está configurada
         if (armor.getMaxDurability() > 0) {
             CustomDurabilityManager.setCustomMaxDurability(stack, armor.getMaxDurability());
         }
@@ -97,9 +85,6 @@ public class CustomArmorManager {
         return stack;
     }
 
-    /**
-     * Identifies a CustomArmor from an ItemStack.
-     */
     public CustomArmor identify(ItemStack stack) {
         if (stack == null || stack.getType() == Material.AIR) return null;
 
@@ -113,7 +98,6 @@ public class CustomArmorManager {
             if (meta != null) {
                 if (meta.hasDisplayName()) displayName = meta.getDisplayName();
                 if (meta.hasLore() && meta.getLore() != null) {
-                    // Filtrar línea de durabilidad para no interferir con la identificación
                     for (String line : meta.getLore()) {
                         String clean = org.bukkit.ChatColor.stripColor(line);
                         if (clean != null && !clean.trim().matches("^\\d+/\\d+ \\(\\d+%\\)$")) {

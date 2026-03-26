@@ -26,7 +26,6 @@ public class CustomItemManager {
         return instance;
     }
 
-
     public boolean register(CustomItem item) {
         if (items.containsKey(item.getId())) return false;
         items.put(item.getId(), item);
@@ -56,7 +55,6 @@ public class CustomItemManager {
         return ids;
     }
 
-
     public ItemStack buildItemStack(CustomItem item) {
         Material mat = parseMaterial(item.getMaterial(), Material.STONE);
 
@@ -76,25 +74,16 @@ public class CustomItemManager {
             meta.setLore(lore);
         }
 
-        // FIX: Si hay durabilidad custom activa, el item NO puede ser vanilla-unbreakable
-        // porque Bukkit no dispara PlayerItemDamageEvent en items irrompibles vanilla.
-        // El flag isUnbreakable() del modelo solo aplica cuando NO hay custom durability.
-        if (item.getMaxDurability() > 0) {
-            meta.setUnbreakable(false);
-        } else {
-            meta.setUnbreakable(item.isUnbreakable());
-        }
+        meta.setUnbreakable(item.isUnbreakable());
 
         stack.setItemMeta(meta);
 
-        // Aplicar durabilidad custom si está configurada
         if (item.getMaxDurability() > 0) {
             CustomDurabilityManager.setCustomMaxDurability(stack, item.getMaxDurability());
         }
 
         return stack;
     }
-
 
     public CustomItem identify(ItemStack stack) {
         if (stack == null || stack.getType() == Material.AIR) return null;
@@ -109,7 +98,6 @@ public class CustomItemManager {
             if (meta != null) {
                 if (meta.hasDisplayName()) displayName = meta.getDisplayName();
                 if (meta.hasLore() && meta.getLore() != null) {
-                    // Filtrar línea de durabilidad para que no rompa la identificación
                     for (String line : meta.getLore()) {
                         String clean = org.bukkit.ChatColor.stripColor(line);
                         if (clean != null && !clean.trim().matches("^\\d+/\\d+ \\(\\d+%\\)$")) {

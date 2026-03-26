@@ -5,6 +5,8 @@ import com.dragonminez.common.network.S2C.StatsSyncS2C;
 import com.dragonminez.common.stats.StatsCapability;
 import com.dragonminez.common.stats.StatsProvider;
 import net.minecraft.server.level.ServerPlayer;
+import noppes.npcs.api.IWorld;
+import noppes.npcs.api.NpcAPI;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Sound;
@@ -22,6 +24,7 @@ import java.util.Set;
 
 public class General {
     public static final Set<ArmorStand> HOLOGRAMS = new HashSet<>();
+
     public static void addBonus(Player player, String stat, String bonusName, String operation, double value) {
         StatsProvider.get(StatsCapability.INSTANCE, ((CraftPlayer) player).getHandle()).ifPresent(stats -> {
             stats.getBonusStats().addBonus(stat, bonusName, operation, value);
@@ -34,24 +37,35 @@ public class General {
         });
     }
 
+    public static void spawnNpc(double x, double y, double z, int tab, String name, Player player) {
+        IWorld world = null;
+        for (IWorld iWorld : NpcAPI.Instance().getIWorlds()) {
+            if (iWorld.getName().equals(player.getWorld().getName())) {
+                world = iWorld;
+                break;
+            }
+        }
+        NpcAPI.Instance().getClones().spawn(x, y, z, tab, name,
+                world);
+    }
 
     public static void addEnergyEffect(Player player, String operation, double value) {
         StatsProvider.get(StatsCapability.INSTANCE, ((CraftPlayer) player).getHandle()).ifPresent(stats -> {
             int current = stats.getResources().getCurrentEnergy();
-            int max     = stats.getMaxEnergy();
+            int max = stats.getMaxEnergy();
             int newEnergy;
 
             switch (operation) {
                 case "*" -> newEnergy = (int) Math.min(max, current + (max * value));
                 case "+" -> newEnergy = (int) Math.min(max, current + value);
-                case "-" -> newEnergy = (int) Math.max(0,   current - value);
-                default  -> newEnergy = current;
+                case "-" -> newEnergy = (int) Math.max(0, current - value);
+                default -> newEnergy = current;
             }
 
             stats.getResources().setCurrentEnergy(newEnergy);
 
             Location loc = player.getLocation().clone().add(0, 2.2, 0);
-            spawnHologram(loc, CC.translate("&9⚡ +" + (int)(max * value)), 25);
+            spawnHologram(loc, CC.translate("&9⚡ +" + (int) (max * value)), 25);
         });
     }
 
@@ -59,40 +73,40 @@ public class General {
     public static void addStaminaEffect(Player player, String operation, double value) {
         StatsProvider.get(StatsCapability.INSTANCE, ((CraftPlayer) player).getHandle()).ifPresent(stats -> {
             int current = stats.getResources().getCurrentStamina();
-            int max     = stats.getMaxStamina();
+            int max = stats.getMaxStamina();
             int newStamina;
 
             switch (operation) {
                 case "*" -> newStamina = (int) Math.min(max, current + (max * value));
                 case "+" -> newStamina = (int) Math.min(max, current + value);
-                case "-" -> newStamina = (int) Math.max(0,   current - value);
-                default  -> newStamina = current;
+                case "-" -> newStamina = (int) Math.max(0, current - value);
+                default -> newStamina = current;
             }
 
             stats.getResources().setCurrentStamina(newStamina);
 
             Location loc = player.getLocation().clone().add(0, 1.8, 0);
-            spawnHologram(loc, CC.translate("&e❃ +" + (int)(max * value)), 25);
+            spawnHologram(loc, CC.translate("&e❃ +" + (int) (max * value)), 25);
         });
     }
 
     public static void addHealthEffect(Player player, String operation, double value) {
         StatsProvider.get(StatsCapability.INSTANCE, ((CraftPlayer) player).getHandle()).ifPresent(stats -> {
-            double current   = player.getHealth();
+            double current = player.getHealth();
             double maxHealth = player.getMaxHealth();
             double newHealth;
 
             switch (operation) {
                 case "*" -> newHealth = Math.min(maxHealth, current + (maxHealth * value));
                 case "+" -> newHealth = Math.min(maxHealth, current + value);
-                case "-" -> newHealth = Math.max(0,         current - value);
-                default  -> newHealth = current;
+                case "-" -> newHealth = Math.max(0, current - value);
+                default -> newHealth = current;
             }
 
             player.setHealth(newHealth);
 
             Location loc = player.getLocation().clone().add(0, 2.0, 0);
-            spawnHologram(loc, CC.translate("&c❤ +" + (int)(maxHealth * value)), 25);
+            spawnHologram(loc, CC.translate("&c❤ +" + (int) (maxHealth * value)), 25);
         });
     }
 
@@ -117,6 +131,7 @@ public class General {
             HOLOGRAMS.remove(hologram);
         }, durationTicks);
     }
+
     public static void cleanupHolograms(World world) {
         for (Entity entity : world.getEntities()) {
             if (entity instanceof ArmorStand) {
@@ -127,6 +142,7 @@ public class General {
             }
         }
     }
+
     public static void addTp(String username, int amount) {
         var ref = new Object() {
             int total = 0;
