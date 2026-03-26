@@ -144,11 +144,9 @@ public class CustomizedArmor {
                 String operation = operations.getOrDefault(entry.getKey(), "+");
                 String displayValue;
                 if (operation.equals("*")) {
-                    double multiplier = storedValue / 100.0;
-                    double percentage = (multiplier - 1.0) * 100.0;
-                    displayValue = percentage >= 0
-                            ? CC.translate("&b+" + String.format("%.0f", percentage) + "%")
-                            : CC.translate("&b" + String.format("%.0f", percentage) + "%");
+                    displayValue = storedValue >= 0
+                            ? CC.translate("&b+" + storedValue + "%")
+                            : CC.translate("&b" + storedValue + "%");
                 } else if (operation.equals("-")) {
                     displayValue = CC.translate("&c-" + storedValue);
                 } else {

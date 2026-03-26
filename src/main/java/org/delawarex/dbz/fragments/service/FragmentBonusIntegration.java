@@ -43,7 +43,7 @@ public class FragmentBonusIntegration {
                 String operation = operations.getOrDefault(stat, "+");
                 double valueToSend;
                 if (operation.equals("*")) {
-                    valueToSend = storedValue / 100.0;
+                    valueToSend = 1.0 + storedValue / 100.0;
                 } else {
                     valueToSend = storedValue;
                 }

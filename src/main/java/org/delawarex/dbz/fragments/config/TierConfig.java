@@ -79,22 +79,19 @@ public class TierConfig {
 
     public boolean canApply(String tier, String attribute, int currentValue, int valueToAdd, String operation) {
         int limit = getLimit(tier, attribute);
-        if (operation == null || !operation.equals("*")) {
-            return (currentValue + valueToAdd) <= limit;
+        if (operation != null && operation.equals("*")) {
+            return Math.abs(currentValue + valueToAdd) <= limit;
         } else {
-            int totalScaled = currentValue + valueToAdd;
-            double percentageReal = (totalScaled / 100.0 - 1.0) * 100.0;
-            return Math.abs(percentageReal) <= limit;
+            return (currentValue + valueToAdd) <= limit;
         }
     }
 
     public boolean exceedsLimit(String tier, String attribute, int currentValue, String operation) {
         int limit = getLimit(tier, attribute);
-        if (operation == null || !operation.equals("*")) {
-            return currentValue > limit;
+        if (operation != null && operation.equals("*")) {
+            return Math.abs(currentValue) > limit;
         } else {
-            double percentageReal = Math.abs((currentValue / 100.0 - 1.0) * 100.0);
-            return percentageReal > limit;
+            return currentValue > limit;
         }
     }
 

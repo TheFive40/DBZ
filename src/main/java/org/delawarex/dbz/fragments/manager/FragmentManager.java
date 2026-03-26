@@ -70,15 +70,12 @@ public class FragmentManager {
             case "+" -> newValue = currentValue + (int) value;
             case "-" -> newValue = currentValue - (int) value;
             case "*" -> {
-                int scaledFragmentValue = (int) Math.round(value * 100);
+                int fragmentPct = (int) Math.round((value - 1.0) * 100.0);
                 String currentOp = customArmor.getOperations().get(attribute);
                 if (currentOp == null || !currentOp.equals("*")) {
-                    newValue = scaledFragmentValue;
+                    newValue = fragmentPct;
                 } else {
-                    double currentPercentage = (currentValue / 100.0 - 1.0) * 100.0;
-                    double fragmentPercentage = (scaledFragmentValue / 100.0 - 1.0) * 100.0;
-                    double totalPercentage = currentPercentage + fragmentPercentage;
-                    newValue = (int) Math.round((1.0 + totalPercentage / 100.0) * 100);
+                    newValue = currentValue + fragmentPct;
                 }
             }
             default -> newValue = currentValue + (int) value;
@@ -90,10 +87,8 @@ public class FragmentManager {
             int limit = tierConfig.getLimit(customArmor.getTier(), attribute);
             String currentDisplay, newDisplay;
             if (operation.equals("*")) {
-                double cp = (currentValue / 100.0 - 1.0) * 100.0;
-                double np = (newValue / 100.0 - 1.0) * 100.0;
-                currentDisplay = String.format("%+.0f%%", cp);
-                newDisplay = String.format("%+.0f%%", np);
+                currentDisplay = (currentValue >= 0 ? "+" : "") + currentValue + "%";
+                newDisplay = (newValue >= 0 ? "+" : "") + newValue + "%";
             } else {
                 currentDisplay = String.valueOf(currentValue);
                 newDisplay = String.valueOf(newValue);
@@ -119,7 +114,7 @@ public class FragmentManager {
         }
 
         String operationSymbol;
-        if (operation.equals("*")) operationSymbol = valueRaw;
+        if (operation.equals("*")) operationSymbol = (((int) Math.round((value - 1.0) * 100.0)) >= 0 ? "+" : "") + (int) Math.round((value - 1.0) * 100.0) + "%";
         else if (operation.equals("-")) operationSymbol = "-" + valueRaw;
         else operationSymbol = "+" + valueRaw;
 
@@ -150,7 +145,7 @@ public class FragmentManager {
         return customArmor;
     }
 
-    private String getArmorSlotFromMaterial(Material material) {
+    private String getArmorSlotFromMaterial(org.bukkit.Material material) {
         String name = material.name();
         if (name.contains("HELMET")) return "HELMET";
         if (name.contains("CHESTPLATE")) return "CHESTPLATE";

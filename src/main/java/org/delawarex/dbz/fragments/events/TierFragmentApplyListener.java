@@ -93,8 +93,7 @@ public class TierFragmentApplyListener implements Listener {
                 int newLimit = FragmentManager.getInstance().getTierConfig().getLimit(targetTier, attr);
                 String displayValue;
                 if (operation.equals("*")) {
-                    double percentage = (currentValue / 100.0 - 1.0) * 100.0;
-                    displayValue = String.format("%+.0f%%", percentage);
+                    displayValue = (currentValue >= 0 ? "+" : "") + currentValue + "%";
                 } else {
                     displayValue = (currentValue >= 0 ? "+" : "") + currentValue;
                 }

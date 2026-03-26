@@ -68,8 +68,7 @@ public class FragmentAdminCommand extends BaseCommand {
                 String operation = customArmor.getOperations().getOrDefault(entry.getKey(), "+");
                 String displayValue;
                 if (operation.equals("*")) {
-                    double percentage = (value / 100.0 - 1.0) * 100.0;
-                    displayValue = String.format("%+.0f%%", percentage);
+                    displayValue = (value >= 0 ? "+" : "") + value + "%";
                 } else {
                     displayValue = (value >= 0 ? "+" : "") + value;
                 }
