@@ -1,13 +1,20 @@
 package org.delawarex.dbz.raids.events;
 
 import noppes.npcs.api.event.NpcEvent;
-import org.bukkit.*;
+import org.bukkit.Bukkit;
+import org.bukkit.Particle;
+import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Listener;
 import org.bukkit.scheduler.BukkitTask;
 import org.delawarex.dbz.DbzMain;
-import org.delawarex.dbz.raids.managers.*;
-import org.delawarex.dbz.raids.models.*;
+import org.delawarex.dbz.raids.managers.NPCSpawnManager;
+import org.delawarex.dbz.raids.managers.PartyManager;
+import org.delawarex.dbz.raids.managers.RaidSessionManager;
+import org.delawarex.dbz.raids.models.RaidSession;
+import org.delawarex.dbz.raids.models.Wave;
+import org.delawarex.dbz.raids.models.WaveReward;
+import org.delawarex.dbz.raids.models.WaveStatus;
 import org.delawarex.service.CC;
 
 import java.util.*;
@@ -133,7 +140,7 @@ public class NPCDeathListener implements Listener {
                 if (nextWave != null) {
                     nextWave.setStatus(WaveStatus.ACTIVE);
                     String newWaveId = session.getSessionId() + "_wave_" + session.getCurrentWaveIndex();
-                    NPCSpawnManager.spawnWaveNpcs(nextWave, newWaveId, players.get(0));
+                    NPCSpawnManager.spawnWaveNpcs(nextWave, newWaveId);
 
                     for (Player p : players) {
                         p.sendTitle(
