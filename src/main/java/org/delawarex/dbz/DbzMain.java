@@ -1,5 +1,6 @@
 package org.delawarex.dbz;
 
+import noppes.npcs.api.event.NpcEvent;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.entity.ArmorStand;
@@ -7,6 +8,7 @@ import org.bukkit.entity.Entity;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.delawarex.dbz.customitems.CustomItemsModule;
 import org.delawarex.dbz.fragments.FragmentsModule;
+import org.delawarex.dbz.raids.events.NPCDeathListener;
 import org.delawarex.dbz.tps.managers.TpManager;
 import org.delawarex.service.ClassesRegistration;
 import org.delawarex.service.commands.CommandFramework;
@@ -25,12 +27,21 @@ public final class DbzMain extends JavaPlugin {
         saveDefaultConfig();
 
         classesRegistration.loadCommands("org.delawarex.dbz.tps.commands");
+        classesRegistration.loadCommands("org.delawarex.dbz.raids.commands");
+
         classesRegistration.loadListeners("org.delawarex.dbz.tps.events");
+        classesRegistration.loadListeners("org.delawarex.dbz.raids.events");
+
         new TpManager().loadAll();
 
         CustomItemsModule.enable();
         removeAllHolograms();
         FragmentsModule.enable();
+    }
+
+    public static void callDeath(NpcEvent.DiedEvent event) {
+        NPCDeathListener deathListener = new NPCDeathListener();
+        deathListener.onNpcDie(event);
     }
 
     @Override
