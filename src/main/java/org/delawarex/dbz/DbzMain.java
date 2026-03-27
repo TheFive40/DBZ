@@ -39,7 +39,7 @@ public final class DbzMain extends JavaPlugin {
         FragmentsModule.enable();
     }
 
-    public static void callDeath(NpcEvent.DiedEvent event) {
+    public void callDeath(NpcEvent.DiedEvent event) {
         NPCDeathListener deathListener = new NPCDeathListener();
         deathListener.onNpcDie(event);
     }

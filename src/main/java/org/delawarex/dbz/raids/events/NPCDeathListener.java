@@ -26,7 +26,7 @@ public class NPCDeathListener implements Listener {
 
     public void onNpcDie(NpcEvent.DiedEvent event) {
         try {
-            int entityId = event.npc.getMCEntity().getId();
+            int entityId = event.npc.getMCEntity().getBukkitEntity().getEntityId();
             String waveId = NPCSpawnManager.getWaveIdForNpc(entityId);
             if (waveId == null) return;
 

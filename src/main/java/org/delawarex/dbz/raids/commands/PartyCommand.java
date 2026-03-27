@@ -182,7 +182,7 @@ public class PartyCommand extends BaseCommand {
         if (party == null) { player.sendMessage(CC.translate("&c✗ No estás en una party.")); return; }
         if (!party.isLeader(player.getUniqueId())) { player.sendMessage(CC.translate("&c✗ Solo el líder puede iniciar la raid.")); return; }
 
-        Raid raid = org.delawarex.dbz.raids.managers.RaidManager.getInstance().getByName(raidName);
+        Raid raid = RaidManager.getInstance().getByName(raidName);
         if (raid == null) { player.sendMessage(CC.translate("&c✗ Raid no encontrada: &f" + raidName)); return; }
         if (!raid.isEnabled()) { player.sendMessage(CC.translate("&c✗ La raid está desactivada.")); return; }
         if (!raid.isConfigured()) { player.sendMessage(CC.translate("&c✗ La raid no está configurada correctamente.")); return; }
@@ -219,32 +219,49 @@ public class PartyCommand extends BaseCommand {
         }
 
         Bukkit.getScheduler().runTaskLater(DbzMain.instance, () -> {
-            Wave firstWave = session.getCurrentWave();
-            if (firstWave == null) return;
+            try {
+                Wave firstWave = session.getCurrentWave();
 
-            firstWave.setStatus(WaveStatus.ACTIVE);
-            String waveId = session.getSessionId() + "_wave_0";
-            boolean spawned = NPCSpawnManager.spawnWaveNpcs(firstWave, waveId);
+                if (firstWave == null) {
+                    for (Player member : teleported) {
+                        try { member.sendMessage(CC.translate("&c✗ Error: la raid no tiene oleadas configuradas.")); } catch (Exception ignored) {}
+                    }
+                    RaidSessionManager.failRaid(session);
+                    return;
+                }
 
-            for (Player member : teleported) {
-                member.sendTitle(
-                        CC.translate("&c&l⚔ RAID INICIADA ⚔"),
-                        CC.translate("&e" + raid.getRaidName()),
-                        20, 80, 20
-                );
-                member.playSound(member.getLocation(), Sound.ENTITY_WITHER_SPAWN, 0.4f, 1.2f);
-                member.sendMessage(CC.translate("&8&m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"));
-                member.sendMessage(CC.translate("&6&l  ⚔ RAID: " + raid.getRaidName().toUpperCase()));
-                member.sendMessage(CC.translate("&7  Oleadas: &f" + raid.getTotalWaves()));
-                member.sendMessage(CC.translate("&7  Enemigos esta oleada: &f" + firstWave.getTotalEnemies()));
-                member.sendMessage(CC.translate("&8&m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"));
+                for (Player member : teleported) {
+                    try {
+                        member.sendTitle(
+                                CC.translate("&c&l⚔ RAID INICIADA ⚔"),
+                                CC.translate("&e" + raid.getRaidName()),
+                                20, 80, 20
+                        );
+                        member.playSound(member.getLocation(), Sound.ENTITY_WITHER_SPAWN, 0.4f, 1.2f);
+                        member.sendMessage(CC.translate("&8&m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"));
+                        member.sendMessage(CC.translate("&6&l  ⚔ RAID: " + raid.getRaidName().toUpperCase()));
+                        member.sendMessage(CC.translate("&7  Oleadas: &f" + raid.getTotalWaves()));
+                        member.sendMessage(CC.translate("&7  Enemigos esta oleada: &f" + firstWave.getTotalEnemies()));
+                        member.sendMessage(CC.translate("&8&m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"));
+                    } catch (Exception ignored) {}
+                }
+
+                firstWave.setStatus(WaveStatus.ACTIVE);
+                String waveId = session.getSessionId() + "_wave_0";
+                boolean spawned = NPCSpawnManager.spawnWaveNpcs(firstWave, waveId);
 
                 if (!spawned) {
-                    member.sendMessage(CC.translate("&c✗ Error al spawnear enemigos. Contacta un admin."));
+                    for (Player member : teleported) {
+                        try { member.sendMessage(CC.translate("&c✗ Error al spawnear enemigos. Contacta un admin.")); } catch (Exception ignored) {}
+                    }
+                    RaidSessionManager.failRaid(session);
                 }
-            }
 
-            if (!spawned) {
+            } catch (Exception e) {
+                e.printStackTrace();
+                for (Player member : teleported) {
+                    try { member.sendMessage(CC.translate("&c✗ Error interno al iniciar la raid.")); } catch (Exception ignored) {}
+                }
                 RaidSessionManager.failRaid(session);
             }
         }, 40L);
