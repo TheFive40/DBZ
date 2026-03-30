@@ -8,6 +8,7 @@ import org.bukkit.entity.Entity;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.delawarex.dbz.customitems.CustomItemsModule;
 import org.delawarex.dbz.fragments.FragmentsModule;
+import org.delawarex.dbz.placeholder.PlaceHolderModule;
 import org.delawarex.dbz.raids.events.NPCDeathListener;
 import org.delawarex.dbz.tps.managers.TpManager;
 import org.delawarex.service.ClassesRegistration;
@@ -28,15 +29,24 @@ public final class DbzMain extends JavaPlugin {
 
         classesRegistration.loadCommands("org.delawarex.dbz.tps.commands");
         classesRegistration.loadCommands("org.delawarex.dbz.raids.commands");
+        classesRegistration.loadCommands("org.delawarex.dbz.boosters.commands");
+        classesRegistration.loadCommands("org.delawarex.dbz.market.commands");
 
         classesRegistration.loadListeners("org.delawarex.dbz.tps.events");
         classesRegistration.loadListeners("org.delawarex.dbz.raids.events");
+        classesRegistration.loadListeners("org.delawarex.dbz.boosters.events");
+        classesRegistration.loadListeners("org.delawarex.dbz.market.events");
+
+
 
         new TpManager().loadAll();
 
         CustomItemsModule.enable();
         removeAllHolograms();
         FragmentsModule.enable();
+
+        PlaceHolderModule.initialize(this);
+
     }
 
     public void callDeath(NpcEvent.DiedEvent event) {
@@ -53,6 +63,8 @@ public final class DbzMain extends JavaPlugin {
         }
         HOLOGRAMS.clear();
         FragmentsModule.disable();
+        PlaceHolderModule.shutdown();
+
     }
 
     public CommandFramework getCommandFramework() {

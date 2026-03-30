@@ -11,6 +11,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Sound;
 import org.bukkit.World;
+import org.bukkit.command.CommandSender;
 import org.bukkit.craftbukkit.v1_20_R1.entity.CraftPlayer;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
@@ -21,6 +22,7 @@ import org.delawarex.service.CC;
 
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class General {
     public static final Set<ArmorStand> HOLOGRAMS = new HashSet<>();
@@ -143,6 +145,28 @@ public class General {
         }
     }
 
+    public static void sendMessageBooster(int bonusTPs, int totalTPs, int baseTPs,
+                                          double globalMult, double personalMult, String senderName,
+                                          CommandSender target) {
+        target.sendMessage(CC.translate("&8&m━━━━━━━━━━━━━━━━━━━━━━━━━━━━"));
+        target.sendMessage(CC.translate("&6&l⚡ TPS RECIBIDOS ⚡"));
+        target.sendMessage("");
+        target.sendMessage(CC.translate("  &eTPs Base: &a+" + baseTPs));
+        target.sendMessage(CC.translate("  &eBonus: &6+" + bonusTPs + " TPs"));
+        target.sendMessage(CC.translate("  &eTotal: &b+" + totalTPs + " TPs"));
+        target.sendMessage("");
+        if (globalMult > 1.0) {
+            String globalPercent = String.format("%.0f%%", (globalMult - 1.0) * 100);
+            target.sendMessage(CC.translate("  &6⚡ Booster Global: &a+" + globalPercent));
+        }
+        if (personalMult > 1.0) {
+            String personalPercent = String.format("%.0f%%", (personalMult - 1.0) * 100);
+            target.sendMessage(CC.translate("  &b⚡ Booster Personal: &a+" + personalPercent));
+        }
+        target.sendMessage(CC.translate("  &7Otorgado por: &6" + senderName));
+        target.sendMessage(CC.translate("&8&m━━━━━━━━━━━━━━━━━━━━━━━━━━━━"));
+    }
+
     public static void addTp(String username, int amount) {
         var ref = new Object() {
             int total = 0;
@@ -155,22 +179,16 @@ public class General {
             ref.total = statsData.getResources().getTrainingPoints();
             NetworkHandler.sendToTrackingEntityAndSelf(new StatsSyncS2C(serverPlayer), serverPlayer);
         }));
-        player.sendMessage(CC.translate("&8&m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"));
-        player.sendMessage(CC.translate("&6&l⚡ TPS OBTENIDOS ⚡"));
-        player.sendMessage("");
-        player.sendMessage(CC.translate("  &eTPs Base: &a+" + amount));
-        player.sendMessage(CC.translate("  &eBonus: &6+" + 0));
-        player.sendMessage(CC.translate("  &eTotal: &b+" + ref.total + " TPs"));
-        player.sendMessage("");
-        double booster = 0;
-        if (booster > 1.0) {
-            String percent = String.format("%.0f%%", (booster - 1.0) * 100);
-            player.sendMessage(CC.translate("  &6⚡ Booster: &a+" + percent));
-        }
-        double mult = 1.0;
-        String totalPercent = String.format("%.0f%%", (mult - 1.0) * 100);
-        player.sendMessage(CC.translate("  &a⚡ Multiplicador Total: &6x" + String.format("%.2f", mult) + " &7(+" + totalPercent + ")"));
-        player.sendMessage(CC.translate("&8&m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"));
+        player.sendMessage(CC.translate("&a&l✓ &eHas recibido &6+" + amount + " TPs&e."));
         player.playSound(player, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 10f, 10f);
+    }
+
+    public static int getTP(Player player) {
+        ServerPlayer entity = ((CraftPlayer) player).getHandle();
+        AtomicInteger trainingPoints = new AtomicInteger();
+        StatsProvider.get(StatsCapability.INSTANCE, entity).ifPresent((statsData -> {
+            trainingPoints.set(statsData.getResources().getTrainingPoints());
+        }));
+        return trainingPoints.get();
     }
 }
