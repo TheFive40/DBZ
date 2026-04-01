@@ -1,92 +1,107 @@
 package org.delawarex.dbz.market.storage;
 
-import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.configuration.file.YamlConfiguration;
+import net.milkbowl.vault.economy.Economy;
+import net.milkbowl.vault.economy.EconomyResponse;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.RegisteredServiceProvider;
 import org.delawarex.dbz.DbzMain;
 
-import java.io.File;
-import java.io.IOException;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class EconomyManager {
 
-    private final File                              file;
-    private       FileConfiguration                config;
-    private final ConcurrentHashMap<UUID, Double>  cache = new ConcurrentHashMap<>();
-    private final double                           startingBalance;
+    private static Economy vaultEconomy;
 
     public EconomyManager(double startingBalance) {
-        this.startingBalance = startingBalance;
-        File folder = new File(DbzMain.instance.getDataFolder(), "market");
-        folder.mkdirs();
-        this.file = new File(folder, "balances.yml");
-        reload();
+        if (vaultEconomy == null) {
+            setupVault();
+        }
     }
 
-    public void reload() {
-        if (!file.exists()) {
-            try { file.createNewFile(); } catch (IOException e) { e.printStackTrace(); }
+    private void setupVault() {
+        if (Bukkit.getPluginManager().getPlugin("Vault") == null) {
+            DbzMain.instance.getLogger().severe("[Market] Vault no encontrado. El mercado necesita Vault + Essentials.");
+            return;
         }
-        config = YamlConfiguration.loadConfiguration(file);
-        cache.clear();
-        if (config.isConfigurationSection("balances")) {
-            for (String key : config.getConfigurationSection("balances").getKeys(false)) {
-                try {
-                    UUID uuid = UUID.fromString(key);
-                    cache.put(uuid, config.getDouble("balances." + key));
-                } catch (IllegalArgumentException ignored) {}
-            }
+        RegisteredServiceProvider<Economy> rsp = Bukkit.getServicesManager().getRegistration(Economy.class);
+        if (rsp == null) {
+            DbzMain.instance.getLogger().severe("[Market] No se encontró proveedor de Economy. ¿Está EssentialsX instalado?");
+            return;
         }
+        vaultEconomy = rsp.getProvider();
+        DbzMain.instance.getLogger().info("[Market] Economy enlazada con: " + vaultEconomy.getName());
+    }
+
+    public static boolean isHooked() {
+        return vaultEconomy != null;
     }
 
     public double getBalance(Player player) {
-        return cache.getOrDefault(player.getUniqueId(), startingBalance);
+        if (vaultEconomy == null) return 0;
+        return vaultEconomy.getBalance(player);
     }
 
     public double getBalance(UUID uuid) {
-        return cache.getOrDefault(uuid, startingBalance);
+        if (vaultEconomy == null) return 0;
+        Player player = Bukkit.getPlayer(uuid);
+        if (player != null) return vaultEconomy.getBalance(player);
+        String name = Bukkit.getOfflinePlayer(uuid).getName();
+        if (name == null) return 0;
+        return vaultEconomy.getBalance(Bukkit.getOfflinePlayer(uuid));
     }
 
     public boolean withdraw(Player player, double amount) {
-        double current = getBalance(player);
-        if (current < amount) return false;
-        set(player.getUniqueId(), current - amount);
-        return true;
+        if (vaultEconomy == null) return false;
+        if (vaultEconomy.getBalance(player) < amount) return false;
+        EconomyResponse res = vaultEconomy.withdrawPlayer(player, amount);
+        return res.transactionSuccess();
     }
 
     public void deposit(Player player, double amount) {
-        set(player.getUniqueId(), getBalance(player) + amount);
+        if (vaultEconomy == null) return;
+        vaultEconomy.depositPlayer(player, amount);
     }
 
     public boolean transfer(Player from, Player to, double amount) {
-        if (getBalance(from) < amount) return false;
-        withdraw(from, amount);
-        deposit(to, amount);
+        if (vaultEconomy == null) return false;
+        if (vaultEconomy.getBalance(from) < amount) return false;
+        EconomyResponse wd = vaultEconomy.withdrawPlayer(from, amount);
+        if (!wd.transactionSuccess()) return false;
+        vaultEconomy.depositPlayer(to, amount);
         return true;
     }
 
     public void setBalance(UUID uuid, double amount) {
-        set(uuid, Math.max(0, amount));
+        if (vaultEconomy == null) return;
+        org.bukkit.OfflinePlayer op = Bukkit.getOfflinePlayer(uuid);
+        double current = vaultEconomy.getBalance(op);
+        if (current > amount) {
+            vaultEconomy.withdrawPlayer(op, current - amount);
+        } else if (current < amount) {
+            vaultEconomy.depositPlayer(op, amount - current);
+        }
     }
 
     public void giveBalance(UUID uuid, double amount) {
-        set(uuid, getBalance(uuid) + amount);
+        if (vaultEconomy == null) return;
+        vaultEconomy.depositPlayer(Bukkit.getOfflinePlayer(uuid), amount);
     }
 
+    public void reload() {}
+
     public String format(double amount, String symbol) {
+        if (vaultEconomy != null) return vaultEconomy.format(amount);
         return String.format("%.2f %s", amount, symbol);
     }
 
-    private void set(UUID uuid, double amount) {
-        amount = Math.round(amount * 100.0) / 100.0;
-        cache.put(uuid, amount);
-        config.set("balances." + uuid.toString(), amount);
-        save();
+    public String getCurrencyName() {
+        if (vaultEconomy != null) return vaultEconomy.currencyNamePlural();
+        return "Zeni";
     }
 
-    private void save() {
-        try { config.save(file); } catch (IOException e) { e.printStackTrace(); }
+    public String getCurrencySymbol() {
+        if (vaultEconomy != null) return vaultEconomy.currencyNameSingular();
+        return "₢";
     }
 }

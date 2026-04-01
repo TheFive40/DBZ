@@ -1,8 +1,8 @@
 package org.delawarex.dbz.market.commands;
 
-import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.delawarex.dbz.market.ShopManager;
+import org.delawarex.dbz.market.storage.EconomyManager;
 import org.delawarex.service.CC;
 import org.delawarex.service.commands.BaseCommand;
 import org.delawarex.service.commands.Command;
@@ -17,11 +17,16 @@ public class BalanceCommand extends BaseCommand {
     public void onCommand(CommandArgs args) throws IOException {
         if (!args.isPlayer()) return;
         Player player = args.getPlayer();
+
+        if (!EconomyManager.isHooked()) {
+            player.sendMessage(CC.translate("&cEl sistema de economía no está disponible."));
+            return;
+        }
+
         ShopManager mgr = ShopManager.getInstance();
-        String sym = mgr.getConfig().currencySymbol;
-        String name = mgr.getConfig().currencyName;
-        player.sendMessage(CC.translate("&8[&6⚡&8] &7Tu balance: &f"
-                + String.format("%.2f", mgr.getEconomy().getBalance(player))
-                + " &e" + sym + " &8(" + name + ")"));
+        double balance  = mgr.getEconomy().getBalance(player);
+        String formatted = mgr.getEconomy().format(balance, "");
+
+        player.sendMessage(CC.translate("&8[&6⚡&8] &7Tu balance: &f" + formatted));
     }
 }

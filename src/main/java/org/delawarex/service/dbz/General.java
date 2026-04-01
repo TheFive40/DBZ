@@ -1,5 +1,4 @@
 package org.delawarex.service.dbz;
-
 import com.dragonminez.common.network.NetworkHandler;
 import com.dragonminez.common.network.S2C.StatsSyncS2C;
 import com.dragonminez.common.stats.StatsCapability;
@@ -19,7 +18,6 @@ import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
 import org.delawarex.dbz.DbzMain;
 import org.delawarex.service.CC;
-
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -49,6 +47,14 @@ public class General {
         }
         NpcAPI.Instance().getClones().spawn(x, y, z, tab, name,
                 world);
+    }
+
+    public static int getLVL(Player player) {
+        AtomicInteger lvl = new AtomicInteger();
+        StatsProvider.get(StatsCapability.INSTANCE, ((CraftPlayer) player).getHandle()).ifPresent(stats -> {
+            lvl.set(stats.getLevel());
+        });
+        return lvl.get();
     }
 
     public static void addEnergyEffect(Player player, String operation, double value) {
