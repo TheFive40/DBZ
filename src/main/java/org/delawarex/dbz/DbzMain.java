@@ -6,8 +6,11 @@ import org.bukkit.World;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitRunnable;
 import org.delawarex.dbz.advancedcrates.managers.CrateManager;
 import org.delawarex.dbz.advancedcrates.storage.CrateStorage;
+import org.delawarex.dbz.bank.manager.BankConfigManager;
+import org.delawarex.dbz.bank.manager.BankManager;
 import org.delawarex.dbz.customitems.CustomItemsModule;
 import org.delawarex.dbz.fragments.FragmentsModule;
 import org.delawarex.dbz.placeholder.PlaceHolderModule;
@@ -24,11 +27,14 @@ public final class DbzMain extends JavaPlugin {
     private final ClassesRegistration classesRegistration = new ClassesRegistration();
     public static DbzMain instance;
     private CrateManager crateManager;
+    private static BukkitRunnable scheduler;
 
     @Override
     public void onEnable() {
         instance = this;
         CrateStorage storage = new CrateStorage();
+        BankConfigManager.getInstance();
+        BankManager.getInstance();
 
         saveDefaultConfig();
 
@@ -53,13 +59,22 @@ public final class DbzMain extends JavaPlugin {
         FragmentsModule.enable();
         crateManager = new CrateManager(storage);
         crateManager.loadAll();
+        scheduler = new BukkitRunnable() {
+            @Override
+            public void run() {
+                BankManager.getInstance().processScheduledPayments();
+            }
+        };
+        scheduler.runTaskTimer(DbzMain.instance, 20L * 60, 20L * 60);
 
         PlaceHolderModule.initialize(this);
 
     }
+
     public CrateManager getCrateManager() {
         return crateManager;
     }
+
     public void callDeath(NpcEvent.DiedEvent event) {
         NPCDeathListener deathListener = new NPCDeathListener();
         deathListener.onNpcDie(event);
@@ -85,6 +100,7 @@ public final class DbzMain extends JavaPlugin {
     public ClassesRegistration getClassesRegistration() {
         return classesRegistration;
     }
+
     public static org.delawarex.dbz.DbzMain get() {
         return instance;
     }

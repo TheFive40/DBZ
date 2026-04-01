@@ -20,8 +20,8 @@ public class BankManager {
     private static BankManager instance;
 
     private final BankDataManager    data;
-    private final LoanRangeManager rangeManager;
-    private final PenaltyManager penaltyManager;
+    private final LoanRangeManager   rangeManager;
+    private final PenaltyManager     penaltyManager;
 
     private final Logger log = DbzMain.instance.getLogger();
 
@@ -99,17 +99,43 @@ public class BankManager {
         LoanRange range = optRange.get();
 
         BankAccount acc = getOrCreate(player);
+
+        checkCapacityReset(acc);
+
         long activeLoanCount = acc.getLoans().stream().filter(l -> l.getType() == type && !l.isFullyPaid()).count();
         if (activeLoanCount >= 3) return "&cYa tienes demasiados préstamos activos de tipo " + type.display() + ".";
 
         if (type == LoanType.TPS) {
-            if (amount > range.getMaxTPS()) return "&cSegún tu nivel (&f" + level + "&c), puedes solicitar hasta &f" + range.getMaxTPS() + " TPS.";
+            long maxCapacity  = range.getMaxTPS();
+            long usedCapacity = acc.getUsedTpsCapacity();
+            long available    = maxCapacity - usedCapacity;
+
+            if (available <= 0) {
+                return "&cHas agotado tu capacidad de préstamo de TPS. &7" + getResetTimeString(acc);
+            }
+            if (amount > available) {
+                return "&cCapacidad insuficiente. Disponible: &f" + available + " TPS. &7" + getResetTimeString(acc);
+            }
+
             acc.setTpsBalance(acc.getTpsBalance() + (long) amount);
             addPlayerTPS(player, (long) amount);
+            acc.setUsedTpsCapacity(usedCapacity + (long) amount);
+
         } else {
-            if (amount > range.getMaxZenis()) return "&cSegún tu nivel (&f" + level + "&c), puedes solicitar hasta &f" + String.format("%.2f", range.getMaxZenis()) + " Zenis.";
+            double maxCapacity  = range.getMaxZenis();
+            double usedCapacity = acc.getUsedZenisCapacity();
+            double available    = maxCapacity - usedCapacity;
+
+            if (available <= 0) {
+                return "&cHas agotado tu capacidad de préstamo de Zenis. &7" + getResetTimeString(acc);
+            }
+            if (amount > available) {
+                return "&cCapacidad insuficiente. Disponible: &f" + String.format("%.2f", available) + " Zenis. &7" + getResetTimeString(acc);
+            }
+
             acc.setZeniBalance(acc.getZeniBalance() + amount);
             depositVaultZeni(player, amount);
+            acc.setUsedZenisCapacity(usedCapacity + amount);
         }
 
         Loan loan = new Loan(type, amount, range.getInterestRate(),
@@ -123,6 +149,53 @@ public class BankManager {
                 + " &a| Cuotas: &f" + range.getInstallmentCount()
                 + " &ade &f" + String.format("%.0f", loan.getInstallmentAmount())
                 + " " + type.display() + " &acada " + range.getInstallmentIntervalHours() + "h.";
+    }
+
+    public void checkCapacityReset(BankAccount acc) {
+        long resetDays = BankConfigManager.getInstance().getCapacityResetDays();
+
+        if (acc.getLastCapacityReset() == 0) {
+            acc.setLastCapacityReset(System.currentTimeMillis());
+            save(acc);
+            return;
+        }
+
+        long elapsedDays = (System.currentTimeMillis() - acc.getLastCapacityReset()) / 86400000L;
+        if (elapsedDays >= resetDays) {
+            acc.setUsedTpsCapacity(0);
+            acc.setUsedZenisCapacity(0.0);
+            acc.setLastCapacityReset(System.currentTimeMillis());
+            save(acc);
+        }
+    }
+
+    private String getResetTimeString(BankAccount acc) {
+        long resetDays = BankConfigManager.getInstance().getCapacityResetDays();
+        long resetAt   = acc.getLastCapacityReset() + (resetDays * 86400000L);
+        long remaining = Math.max(0, resetAt - System.currentTimeMillis());
+        long days  = remaining / 86400000L;
+        long hours = (remaining % 86400000L) / 3600000L;
+        long mins  = (remaining % 3600000L) / 60000L;
+        if (days > 0) return "Reset en: &f" + days + "d " + hours + "h " + mins + "m";
+        if (hours > 0) return "Reset en: &f" + hours + "h " + mins + "m";
+        return "Reset en: &f" + mins + "m";
+    }
+
+    public long getAvailableTpsCapacity(BankAccount acc, LoanRange range) {
+        checkCapacityReset(acc);
+        return Math.max(0, range.getMaxTPS() - acc.getUsedTpsCapacity());
+    }
+
+    public double getAvailableZeniCapacity(BankAccount acc, LoanRange range) {
+        checkCapacityReset(acc);
+        return Math.max(0, range.getMaxZenis() - acc.getUsedZenisCapacity());
+    }
+
+    public void resetCapacity(BankAccount acc) {
+        acc.setUsedTpsCapacity(0);
+        acc.setUsedZenisCapacity(0.0);
+        acc.setLastCapacityReset(System.currentTimeMillis());
+        save(acc);
     }
 
     public String payLoan(Player player, String loanId, double amount) {

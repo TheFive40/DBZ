@@ -13,18 +13,26 @@ public class BankAccount {
     private double     zeniPenaltyRate;
     private double     tpsPenaltyRate;
 
+    private long   usedTpsCapacity;
+    private double usedZenisCapacity;
+    private long   lastCapacityReset;
+
     public BankAccount() {
-        this.loans          = new ArrayList<>();
-        this.zeniBalance    = 0;
-        this.tpsBalance     = 0;
-        this.zeniPenaltyRate = 0;
-        this.tpsPenaltyRate  = 0;
+        this.loans             = new ArrayList<>();
+        this.zeniBalance       = 0;
+        this.tpsBalance        = 0;
+        this.zeniPenaltyRate   = 0;
+        this.tpsPenaltyRate    = 0;
+        this.usedTpsCapacity   = 0;
+        this.usedZenisCapacity = 0.0;
+        this.lastCapacityReset = 0;
     }
 
     public BankAccount(String uuid, String playerName) {
         this();
-        this.uuid       = uuid;
-        this.playerName = playerName;
+        this.uuid             = uuid;
+        this.playerName       = playerName;
+        this.lastCapacityReset = System.currentTimeMillis();
     }
 
     public boolean hasZeniPenalty() { return zeniPenaltyRate > 0; }
@@ -55,18 +63,25 @@ public class BankAccount {
         zeniPenaltyRate = Math.min(zeniPenaltyRate, 0.90);
     }
 
-    public String     getUuid()                  { return uuid; }
-    public void       setUuid(String v)           { this.uuid = v; }
-    public String     getPlayerName()             { return playerName; }
-    public void       setPlayerName(String v)     { this.playerName = v; }
-    public double     getZeniBalance()            { return zeniBalance; }
-    public void       setZeniBalance(double v)    { this.zeniBalance = Math.max(0, v); }
-    public long       getTpsBalance()             { return tpsBalance; }
-    public void       setTpsBalance(long v)       { this.tpsBalance = Math.max(0, v); }
-    public List<Loan> getLoans()                  { return loans; }
-    public void       setLoans(List<Loan> v)      { this.loans = v != null ? v : new ArrayList<>(); }
-    public double     getZeniPenaltyRate()        { return zeniPenaltyRate; }
-    public void       setZeniPenaltyRate(double v){ this.zeniPenaltyRate = v; }
-    public double     getTpsPenaltyRate()         { return tpsPenaltyRate; }
-    public void       setTpsPenaltyRate(double v) { this.tpsPenaltyRate = v; }
+    public String     getUuid()                    { return uuid; }
+    public void       setUuid(String v)             { this.uuid = v; }
+    public String     getPlayerName()               { return playerName; }
+    public void       setPlayerName(String v)       { this.playerName = v; }
+    public double     getZeniBalance()              { return zeniBalance; }
+    public void       setZeniBalance(double v)      { this.zeniBalance = Math.max(0, v); }
+    public long       getTpsBalance()               { return tpsBalance; }
+    public void       setTpsBalance(long v)         { this.tpsBalance = Math.max(0, v); }
+    public List<Loan> getLoans()                    { return loans; }
+    public void       setLoans(List<Loan> v)        { this.loans = v != null ? v : new ArrayList<>(); }
+    public double     getZeniPenaltyRate()          { return zeniPenaltyRate; }
+    public void       setZeniPenaltyRate(double v)  { this.zeniPenaltyRate = v; }
+    public double     getTpsPenaltyRate()           { return tpsPenaltyRate; }
+    public void       setTpsPenaltyRate(double v)   { this.tpsPenaltyRate = v; }
+
+    public long   getUsedTpsCapacity()              { return usedTpsCapacity; }
+    public void   setUsedTpsCapacity(long v)        { this.usedTpsCapacity = Math.max(0, v); }
+    public double getUsedZenisCapacity()            { return usedZenisCapacity; }
+    public void   setUsedZenisCapacity(double v)    { this.usedZenisCapacity = Math.max(0, v); }
+    public long   getLastCapacityReset()            { return lastCapacityReset; }
+    public void   setLastCapacityReset(long v)      { this.lastCapacityReset = v; }
 }

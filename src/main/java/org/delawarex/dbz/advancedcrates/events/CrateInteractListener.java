@@ -7,6 +7,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.delawarex.dbz.DbzMain;
@@ -57,6 +58,16 @@ public class CrateInteractListener implements Listener {
         }
 
         new CrateOpenAnimation(crate, reward, player).start();
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onBlockBreak(BlockBreakEvent event) {
+        CrateManager mgr = DbzMain.get().getCrateManager();
+        Location loc = event.getBlock().getLocation();
+        Crate crate = findCrateAtLocation(mgr, loc);
+        if (crate == null) return;
+        event.setCancelled(true);
+        event.getPlayer().sendMessage(CC.translate("&c\u2717 No puedes romper un bloque de crate."));
     }
 
     private Crate findCrateAtLocation(CrateManager mgr, Location loc) {

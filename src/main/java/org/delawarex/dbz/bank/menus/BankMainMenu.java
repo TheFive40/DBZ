@@ -2,6 +2,7 @@ package org.delawarex.dbz.bank.menus;
 
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
+import org.delawarex.dbz.bank.manager.BankConfigManager;
 import org.delawarex.dbz.bank.manager.BankManager;
 import org.delawarex.dbz.bank.model.BankAccount;
 import org.delawarex.dbz.bank.model.Loan;
@@ -25,19 +26,34 @@ public class BankMainMenu extends Menu {
     @Override
     protected void buildContents(Player player) {
         fillBorder();
-        BankManager  mgr = BankManager.getInstance();
-        BankAccount  acc = mgr.getOrCreate(player);
-        int          lvl = mgr.getPlayerLevel(player);
+        BankManager  mgr  = BankManager.getInstance();
+        BankAccount  acc  = mgr.getOrCreate(player);
+        int          lvl  = mgr.getPlayerLevel(player);
         Optional<LoanRange> range = mgr.getRangeManager().getRangeForLevel(lvl);
         SimpleDateFormat fmt = new SimpleDateFormat("dd/MM HH:mm");
 
-        set(4, item(Material.GOLD_INGOT,
-                "&6&lTu Cuenta Bancaria",
-                "&7Nivel: &f" + lvl,
-                "&7Zenis banco: &f" + String.format("%.2f", acc.getZeniBalance()),
-                "&7TPS banco:   &f" + acc.getTpsBalance(),
-                acc.hasTpsPenalty()  ? "&c⚠ Penalización TPS: &f"   + (int)(acc.getTpsPenaltyRate() *100)+"%" : "",
-                acc.hasZeniPenalty() ? "&c⚠ Penalización Zenis: &f" + (int)(acc.getZeniPenaltyRate()*100)+"%" : ""));
+        mgr.checkCapacityReset(acc);
+
+        List<String> accountLines = new ArrayList<>();
+        accountLines.add("&7Nivel: &f" + lvl);
+        accountLines.add("&7Zenis banco: &f" + String.format("%.2f", acc.getZeniBalance()));
+        accountLines.add("&7TPS banco:   &f" + acc.getTpsBalance());
+        if (acc.hasTpsPenalty())  accountLines.add("&c⚠ Penalización TPS: &f"   + (int)(acc.getTpsPenaltyRate() *100)+"%");
+        if (acc.hasZeniPenalty()) accountLines.add("&c⚠ Penalización Zenis: &f" + (int)(acc.getZeniPenaltyRate()*100)+"%");
+
+        range.ifPresent(r -> {
+            long   availTps  = mgr.getAvailableTpsCapacity(acc, r);
+            double availZeni = mgr.getAvailableZeniCapacity(acc, r);
+            long   resetDays = BankConfigManager.getInstance().getCapacityResetDays();
+            accountLines.add("&7Cap. TPS disp.: &f" + availTps + "&7/&f" + r.getMaxTPS());
+            accountLines.add("&7Cap. Zenis disp.: &f" + String.format("%.0f", availZeni) + "&7/&f" + String.format("%.0f", r.getMaxZenis()));
+            if (acc.getLastCapacityReset() > 0) {
+                long resetAt = acc.getLastCapacityReset() + (resetDays * 86400000L);
+                accountLines.add("&7Próx. reset: &f" + fmt.format(new Date(resetAt)));
+            }
+        });
+
+        set(4, item(Material.GOLD_INGOT, "&6&lTu Cuenta Bancaria", accountLines.toArray(new String[0])));
 
         set(10, item(Material.EMERALD,
                         "&aDepositar Zenis",
@@ -81,9 +97,11 @@ public class BankMainMenu extends Menu {
 
         List<String> rangeLines = new ArrayList<>();
         range.ifPresentOrElse(r -> {
+            long   availTps  = mgr.getAvailableTpsCapacity(acc, r);
+            double availZeni = mgr.getAvailableZeniCapacity(acc, r);
             rangeLines.add("&7Rango: &fNivel " + r.getMinLevel() + " - " + r.getMaxLevel());
-            rangeLines.add("&7Máx TPS: &f" + r.getMaxTPS());
-            rangeLines.add("&7Máx Zenis: &f" + String.format("%.0f", r.getMaxZenis()));
+            rangeLines.add("&7Cap. TPS disp.: &f" + availTps + "&7/&f" + r.getMaxTPS());
+            rangeLines.add("&7Cap. Zenis disp.: &f" + String.format("%.0f", availZeni) + "&7/&f" + String.format("%.0f", r.getMaxZenis()));
             rangeLines.add("&7Interés: &f" + (int)(r.getInterestRate()*100) + "%");
             rangeLines.add("&7Cuotas: &f" + r.getInstallmentCount() + " c/u " + r.getInstallmentIntervalHours() + "h");
             rangeLines.add("");
@@ -93,7 +111,7 @@ public class BankMainMenu extends Menu {
         set(14, item(Material.PAPER, "&b&lSolicitar Préstamo", rangeLines.toArray(new String[0])),
                 e -> {
                     if (range.isEmpty()) { player.sendMessage(CC.translate("&cNo tienes rango de préstamo configurado.")); return; }
-                    new LoanRequestMenu(range.get()).open(player);
+                    new LoanRequestMenu(range.get(), acc).open(player);
                 });
 
         List<Loan> loans = acc.getActiveLoans();
@@ -112,11 +130,7 @@ public class BankMainMenu extends Menu {
                             overdue ? "&c⚠ VENCIDA - Penalización activa" : "",
                             "", "&a[CLICK para pagar cuota]"),
                     ev -> {
-                        if (l.getType() == LoanType.TPS) {
-                            player.sendMessage(CC.translate(mgr.payLoan(player, l.getId(), l.getInstallmentAmount())));
-                        } else {
-                            player.sendMessage(CC.translate(mgr.payLoan(player, l.getId(), l.getInstallmentAmount())));
-                        }
+                        player.sendMessage(CC.translate(mgr.payLoan(player, l.getId(), l.getInstallmentAmount())));
                         new BankMainMenu().open(player);
                     });
             slot++;

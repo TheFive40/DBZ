@@ -45,15 +45,21 @@ public class CrateStorage {
         config.set(base + ".keyMaterial", crate.getKeyMaterial());
         config.set(base + ".enabled", crate.isEnabled());
 
-        config.set(base + ".visualItem", crate.getVisualItem() != null
-                ? ItemSerializer.serialize(crate.getVisualItem()) : null);
+        try {
+            config.set(base + ".visualItem", crate.getVisualItem() != null
+                    ? ItemSerializer.serialize(crate.getVisualItem()) : null);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
-        if (crate.getPhysicalLocation() != null) {
-            Location loc = crate.getPhysicalLocation();
+        Location loc = crate.getPhysicalLocation();
+        if (loc != null && loc.getWorld() != null) {
             config.set(base + ".location.world", loc.getWorld().getName());
             config.set(base + ".location.x", loc.getX());
             config.set(base + ".location.y", loc.getY());
             config.set(base + ".location.z", loc.getZ());
+            config.set(base + ".location.yaw", (double) loc.getYaw());
+            config.set(base + ".location.pitch", (double) loc.getPitch());
         } else {
             config.set(base + ".location", null);
         }
@@ -101,16 +107,28 @@ public class CrateStorage {
         crate.setEnabled(config.getBoolean(base + ".enabled", true));
 
         String vis = config.getString(base + ".visualItem");
-        if (vis != null) crate.setVisualItem(ItemSerializer.deserialize(vis));
+        if (vis != null && !vis.isEmpty()) {
+            try { crate.setVisualItem(ItemSerializer.deserialize(vis)); }
+            catch (Exception e) { e.printStackTrace(); }
+        }
 
-        if (config.contains(base + ".location")) {
-            String worldName = config.getString(base + ".location.world");
-            World world = Bukkit.getWorld(worldName != null ? worldName : "");
-            if (world != null) {
-                crate.setPhysicalLocation(new Location(world,
-                        config.getDouble(base + ".location.x"),
-                        config.getDouble(base + ".location.y"),
-                        config.getDouble(base + ".location.z")));
+        if (config.contains(base + ".location.world")) {
+            try {
+                String worldName = config.getString(base + ".location.world", "");
+                World world = worldName.isEmpty() ? null : Bukkit.getWorld(worldName);
+                if (world != null) {
+                    double x = config.getDouble(base + ".location.x");
+                    double y = config.getDouble(base + ".location.y");
+                    double z = config.getDouble(base + ".location.z");
+                    float yaw = (float) config.getDouble(base + ".location.yaw", 0.0);
+                    float pitch = (float) config.getDouble(base + ".location.pitch", 0.0);
+                    crate.setPhysicalLocation(new Location(world, x, y, z, yaw, pitch));
+                } else if (!worldName.isEmpty()) {
+                    DbzMain.instance.getLogger().warning(
+                            "[Crates] Mundo '" + worldName + "' no encontrado para crate: " + id);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
             }
         }
 
@@ -118,14 +136,19 @@ public class CrateStorage {
         if (rs != null) {
             List<CrateReward> rewards = new ArrayList<>();
             List<String> keys = new ArrayList<>(rs.getKeys(false));
-            keys.sort(Comparator.comparingInt(k -> { try { return Integer.parseInt(k); } catch (Exception e) { return 0; } }));
+            keys.sort(Comparator.comparingInt(k -> {
+                try { return Integer.parseInt(k); } catch (Exception e) { return 0; }
+            }));
             for (String k : keys) {
                 String rBase = base + ".rewards." + k;
                 CrateReward reward = new CrateReward();
                 reward.setId(config.getString(rBase + ".id", k));
                 reward.setChance(config.getDouble(rBase + ".chance", 10.0));
                 String itemStr = config.getString(rBase + ".item");
-                if (itemStr != null) reward.setItem(ItemSerializer.deserialize(itemStr));
+                if (itemStr != null && !itemStr.isEmpty()) {
+                    try { reward.setItem(ItemSerializer.deserialize(itemStr)); }
+                    catch (Exception e) { e.printStackTrace(); }
+                }
                 reward.setCommands(config.getStringList(rBase + ".commands"));
                 rewards.add(reward);
             }

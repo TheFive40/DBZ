@@ -3,6 +3,7 @@ package org.delawarex.dbz.bank.menus;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.delawarex.dbz.bank.manager.BankManager;
+import org.delawarex.dbz.bank.model.BankAccount;
 import org.delawarex.dbz.bank.model.LoanRange;
 import org.delawarex.dbz.bank.model.LoanType;
 import org.delawarex.dbz.customitems.events.ChatInput;
@@ -11,9 +12,13 @@ import org.delawarex.service.CC;
 
 public class LoanRequestMenu extends Menu {
 
-    private final LoanRange range;
+    private final LoanRange  range;
+    private final BankAccount acc;
 
-    public LoanRequestMenu(LoanRange range) { this.range = range; }
+    public LoanRequestMenu(LoanRange range, BankAccount acc) {
+        this.range = range;
+        this.acc   = acc;
+    }
 
     @Override protected String getTitle() { return "&6&lSolicitar Préstamo"; }
     @Override protected int getRows()     { return 3; }
@@ -21,6 +26,10 @@ public class LoanRequestMenu extends Menu {
     @Override
     protected void buildContents(Player player) {
         fillBorder();
+
+        BankManager mgr    = BankManager.getInstance();
+        long   availTps    = mgr.getAvailableTpsCapacity(acc, range);
+        double availZeni   = mgr.getAvailableZeniCapacity(acc, range);
 
         set(4, item(Material.PAPER,
                 "&7Rango: &fNivel " + range.getMinLevel() + " - " + range.getMaxLevel(),
@@ -30,29 +39,45 @@ public class LoanRequestMenu extends Menu {
 
         set(11, item(Material.EXPERIENCE_BOTTLE,
                         "&b&lPréstamo TPS",
-                        "&7Máximo: &f" + range.getMaxTPS() + " TPS",
+                        "&7Capacidad disponible: &f" + availTps + " TPS",
+                        "&7Máximo total: &8" + range.getMaxTPS() + " TPS",
                         "&7Se acreditará en tu banco y billetera.",
+                        availTps <= 0 ? "&cSIN CAPACIDAD DISPONIBLE" : "",
                         "", "&a[CLICK]"),
-                e -> ChatInput.await(player, "¿Cuántos TPS solicitar? (máx " + range.getMaxTPS() + "):", (p, txt) -> {
-                    try {
-                        long v = Long.parseLong(txt);
-                        p.sendMessage(CC.translate(BankManager.getInstance().requestLoan(p, LoanType.TPS, v)));
-                    } catch (NumberFormatException ex) { p.sendMessage(CC.translate("&cCantidad inválida.")); }
-                    new BankMainMenu().open(p);
-                }));
+                e -> {
+                    if (availTps <= 0) {
+                        player.sendMessage(CC.translate("&cNo tienes capacidad de préstamo de TPS disponible."));
+                        return;
+                    }
+                    ChatInput.await(player, "¿Cuántos TPS solicitar? (disp. " + availTps + "):", (p, txt) -> {
+                        try {
+                            long v = Long.parseLong(txt);
+                            p.sendMessage(CC.translate(mgr.requestLoan(p, LoanType.TPS, v)));
+                        } catch (NumberFormatException ex) { p.sendMessage(CC.translate("&cCantidad inválida.")); }
+                        new BankMainMenu().open(p);
+                    });
+                });
 
         set(13, item(Material.GOLD_INGOT,
                         "&6&lPréstamo Zenis",
-                        "&7Máximo: &f" + String.format("%.0f", range.getMaxZenis()) + " Zenis",
+                        "&7Capacidad disponible: &f" + String.format("%.0f", availZeni) + " Zenis",
+                        "&7Máximo total: &8" + String.format("%.0f", range.getMaxZenis()) + " Zenis",
                         "&7Se acreditará en tu banco y billetera.",
+                        availZeni <= 0 ? "&cSIN CAPACIDAD DISPONIBLE" : "",
                         "", "&a[CLICK]"),
-                e -> ChatInput.await(player, "¿Cuántos Zenis solicitar? (máx " + String.format("%.0f", range.getMaxZenis()) + "):", (p, txt) -> {
-                    try {
-                        double v = Double.parseDouble(txt);
-                        p.sendMessage(CC.translate(BankManager.getInstance().requestLoan(p, LoanType.ZENIS, v)));
-                    } catch (NumberFormatException ex) { p.sendMessage(CC.translate("&cCantidad inválida.")); }
-                    new BankMainMenu().open(p);
-                }));
+                e -> {
+                    if (availZeni <= 0) {
+                        player.sendMessage(CC.translate("&cNo tienes capacidad de préstamo de Zenis disponible."));
+                        return;
+                    }
+                    ChatInput.await(player, "¿Cuántos Zenis solicitar? (disp. " + String.format("%.0f", availZeni) + "):", (p, txt) -> {
+                        try {
+                            double v = Double.parseDouble(txt);
+                            p.sendMessage(CC.translate(mgr.requestLoan(p, LoanType.ZENIS, v)));
+                        } catch (NumberFormatException ex) { p.sendMessage(CC.translate("&cCantidad inválida.")); }
+                        new BankMainMenu().open(p);
+                    });
+                });
 
         set(22, back(), e -> new BankMainMenu().open(player));
     }

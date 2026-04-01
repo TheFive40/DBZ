@@ -1,6 +1,7 @@
 package org.delawarex.dbz.bank.commands;
 
 import org.bukkit.entity.Player;
+import org.delawarex.dbz.bank.manager.BankConfigManager;
 import org.delawarex.dbz.bank.manager.BankManager;
 import org.delawarex.dbz.bank.menus.BankMainMenu;
 import org.delawarex.dbz.bank.model.BankAccount;
@@ -77,10 +78,12 @@ public class BankCommand extends BaseCommand {
     }
 
     private void handleBalance(Player player) {
-        BankManager     mgr = BankManager.getInstance();
-        BankAccount     acc = mgr.getOrCreate(player);
-        int             lvl = mgr.getPlayerLevel(player);
+        BankManager     mgr  = BankManager.getInstance();
+        BankAccount     acc  = mgr.getOrCreate(player);
+        int             lvl  = mgr.getPlayerLevel(player);
         SimpleDateFormat fmt = new SimpleDateFormat("dd/MM HH:mm");
+
+        mgr.checkCapacityReset(acc);
 
         player.sendMessage(CC.translate("&8&m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"));
         player.sendMessage(CC.translate("&6&l  BANCO — " + player.getName()));
@@ -93,8 +96,16 @@ public class BankCommand extends BaseCommand {
 
         Optional<LoanRange> range = mgr.getRangeManager().getRangeForLevel(lvl);
         range.ifPresent(r -> {
+            long availTps   = mgr.getAvailableTpsCapacity(acc, r);
+            double availZeni = mgr.getAvailableZeniCapacity(acc, r);
+            long resetDays  = BankConfigManager.getInstance().getCapacityResetDays();
             player.sendMessage(CC.translate("&7  Rango nivel &f" + r.getMinLevel() + "-" + r.getMaxLevel() + "&7:"));
-            player.sendMessage(CC.translate("&7    Máx TPS: &f" + r.getMaxTPS() + " &8| Máx Zenis: &f" + String.format("%.0f", r.getMaxZenis())));
+            player.sendMessage(CC.translate("&7    Cap. TPS disp.: &f" + availTps + "&7/&f" + r.getMaxTPS()));
+            player.sendMessage(CC.translate("&7    Cap. Zenis disp.: &f" + String.format("%.0f", availZeni) + "&7/&f" + String.format("%.0f", r.getMaxZenis())));
+            if (acc.getLastCapacityReset() > 0) {
+                long resetAt = acc.getLastCapacityReset() + (resetDays * 86400000L);
+                player.sendMessage(CC.translate("&7    Próx. reset capacidad: &f" + fmt.format(new Date(resetAt))));
+            }
         });
 
         List<Loan> loans = acc.getActiveLoans();

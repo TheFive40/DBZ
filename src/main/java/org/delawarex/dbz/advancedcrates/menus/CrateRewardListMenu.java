@@ -50,7 +50,7 @@ public class CrateRewardListMenu extends Menu {
             final int idx      = i;
             ItemStack display   = buildRewardDisplay(reward, totalChance);
             set(slots[i - start], display, e -> {
-                if (e.isShiftClick()) {
+                if (e.isRightClick()) {
                     crate.getRewards().remove(idx);
                     mgr.saveCrate(crate);
                     player.sendMessage(CC.translate("&c\u2717 Recompensa eliminada."));
@@ -73,13 +73,12 @@ public class CrateRewardListMenu extends Menu {
             });
         }
 
-        set(45, page > 1 ? navBtn("\u25C4 Anterior", true) : pane(6),
-                page > 1 ? e -> new CrateRewardListMenu(crateId, page - 1).open(player) : null);
+        set(45, back(), e -> new CrateEditMenu(crateId).open(player));
 
         set(49, item(Material.HOPPER, "&aAgregar Recompensa",
-                "&7Sostén el ítem en la mano",
-                "&7y haz clic para agregarlo",
-                "", "&a[CLICK]"),
+                        "&7Sostén el ítem en la mano",
+                        "&7y haz clic para agregarlo",
+                        "", "&a[CLICK]"),
                 e -> {
                     if (player.getInventory().getItemInMainHand().getType() == Material.AIR) {
                         player.sendMessage(CC.translate("&c\u2717 Sostén un ítem en la mano."));
@@ -104,9 +103,7 @@ public class CrateRewardListMenu extends Menu {
                 });
 
         set(53, page < pages ? navBtn("Siguiente \u25BA", true) : pane(6),
-                page < pages ? e -> new CrateRewardListMenu(crateId, page + 1).open(player) : null);
-
-        set(45, back(), e -> new CrateEditMenu(crateId).open(player));
+                page < pages ? ev -> new CrateRewardListMenu(crateId, page + 1).open(player) : null);
     }
 
     private ItemStack buildRewardDisplay(CrateReward reward, double totalChance) {
@@ -125,8 +122,8 @@ public class CrateRewardListMenu extends Menu {
         if (!reward.getCommands().isEmpty())
             lore.add(CC.translate("&7Comandos: &f" + reward.getCommands().size()));
         lore.add("");
-        lore.add(CC.translate("&e[CLICK] Cambiar probabilidad"));
-        lore.add(CC.translate("&c[SHIFT] Eliminar"));
+        lore.add(CC.translate("&e[CLIC IZQ] Cambiar probabilidad"));
+        lore.add(CC.translate("&c[CLIC DER] Eliminar"));
         meta.setLore(lore);
         base.setItemMeta(meta);
         return base;

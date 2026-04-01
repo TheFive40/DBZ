@@ -5,6 +5,7 @@ import org.delawarex.dbz.DbzMain;
 import org.delawarex.dbz.bank.commands.BankAdminCommand;
 import org.delawarex.dbz.bank.commands.BankCommand;
 import org.delawarex.dbz.bank.events.BankListener;
+import org.delawarex.dbz.bank.manager.BankConfigManager;
 import org.delawarex.dbz.bank.manager.BankManager;
 
 public class BankModule {
@@ -12,6 +13,7 @@ public class BankModule {
     private static BukkitRunnable scheduler;
 
     public static void enable() {
+        BankConfigManager.getInstance();
         BankManager.getInstance();
 
         DbzMain.instance.getServer().getPluginManager()
@@ -36,6 +38,7 @@ public class BankModule {
         BankManager mgr = BankManager.getInstance();
         mgr.getDataManager().getAllCached().forEach(acc -> mgr.save(acc));
         BankManager.reset();
+        BankConfigManager.reset();
         DbzMain.instance.getLogger().info("[Bank] Módulo bancario detenido.");
     }
 }

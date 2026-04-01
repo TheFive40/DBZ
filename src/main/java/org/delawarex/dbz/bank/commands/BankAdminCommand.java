@@ -2,6 +2,7 @@ package org.delawarex.dbz.bank.commands;
 
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
+import org.delawarex.dbz.bank.manager.BankConfigManager;
 import org.delawarex.dbz.bank.manager.BankManager;
 import org.delawarex.dbz.bank.menus.LoanAdminGUI;
 import org.delawarex.dbz.bank.model.BankAccount;
@@ -28,6 +29,8 @@ public class BankAdminCommand extends BaseCommand {
             case "set"             -> handleSet(player, args);
             case "penalty"         -> handlePenalty(player, args);
             case "clearloans"      -> handleClearLoans(player, args);
+            case "resetcapacity"   -> handleResetCapacity(player, args);
+            case "setresetdays"    -> handleSetResetDays(player, args);
             case "reload"          -> handleReload(player);
             default                -> sendHelp(player);
         }
@@ -98,9 +101,32 @@ public class BankAdminCommand extends BaseCommand {
         target.sendMessage(CC.translate("&a✓ Un administrador ha saldado todos tus préstamos."));
     }
 
+    private void handleResetCapacity(Player player, CommandArgs args) {
+        if (args.getArgs().length < 2) { player.sendMessage(CC.translate("&cUso: /bankadmin resetcapacity <jugador>")); return; }
+        Player target = Bukkit.getPlayer(args.getArgs(1));
+        if (target == null) { player.sendMessage(CC.translate("&cJugador no encontrado.")); return; }
+        BankAccount acc = BankManager.getInstance().getOrCreate(target);
+        BankManager.getInstance().resetCapacity(acc);
+        player.sendMessage(CC.translate("&a✓ Capacidad de préstamo de &f" + target.getName() + " &arestablecida."));
+        target.sendMessage(CC.translate("&a✓ Un administrador ha restablecido tu capacidad de préstamo."));
+    }
+
+    private void handleSetResetDays(Player player, CommandArgs args) {
+        if (args.getArgs().length < 2) { player.sendMessage(CC.translate("&cUso: /bankadmin setresetdays <días>")); return; }
+        try {
+            long days = Long.parseLong(args.getArgs(1));
+            if (days < 1) throw new NumberFormatException();
+            BankConfigManager.getInstance().setCapacityResetDays(days);
+            player.sendMessage(CC.translate("&a✓ Días de reset de capacidad: &f" + days));
+        } catch (NumberFormatException e) {
+            player.sendMessage(CC.translate("&cNúmero inválido (mínimo 1)."));
+        }
+    }
+
     private void handleReload(Player player) {
         BankManager.getInstance().getRangeManager().reload();
-        player.sendMessage(CC.translate("&a✓ Rangos de préstamo recargados."));
+        BankConfigManager.getInstance().reload();
+        player.sendMessage(CC.translate("&a✓ Rangos y configuración del banco recargados."));
     }
 
     private void sendHelp(Player player) {
@@ -112,6 +138,8 @@ public class BankAdminCommand extends BaseCommand {
         player.sendMessage(CC.translate("&e/bankadmin penalty clear <j>"));
         player.sendMessage(CC.translate("&e/bankadmin penalty info <j>"));
         player.sendMessage(CC.translate("&e/bankadmin clearloans <j>"));
+        player.sendMessage(CC.translate("&e/bankadmin resetcapacity <j> &8- Reset capacidad préstamo"));
+        player.sendMessage(CC.translate("&e/bankadmin setresetdays <días> &8- Días para reset"));
         player.sendMessage(CC.translate("&e/bankadmin reload"));
         player.sendMessage(CC.translate("&8&m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"));
     }
