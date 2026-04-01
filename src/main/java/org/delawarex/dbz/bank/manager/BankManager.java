@@ -55,16 +55,44 @@ public class BankManager {
         if (amount <= 0) return "&cCantidad inválida.";
         BankAccount acc = getOrCreate(player);
         if (!withdrawVaultZeni(player, amount)) return "&cFondos insuficientes en tu billetera.";
-        acc.setZeniBalance(acc.getZeniBalance() + amount);
+
+        double depositedToBank = amount;
+        if (acc.hasZeniPenalty()) {
+            double penaltyAmount = amount * acc.getZeniPenaltyRate();
+            penaltyAmount = Math.min(penaltyAmount, amount);
+            depositedToBank = amount - penaltyAmount;
+            boolean anyPaid = penaltyManager.applyZeniDebtPayment(acc, penaltyAmount);
+            if (penaltyAmount > 0) {
+                player.sendMessage(CC.translate("&c⚠ Penalización: &f" + String.format("%.2f", penaltyAmount) + " Zenis de tu depósito aplicados a tu deuda."));
+            }
+            if (anyPaid) notifyLoanPaidOff(acc, LoanType.ZENIS);
+        }
+
+        acc.setZeniBalance(acc.getZeniBalance() + depositedToBank);
         save(acc);
-        return "&a✓ Depositaste &f" + String.format("%.2f", amount) + " Zenis &aal banco. Saldo banco: &f" + String.format("%.2f", acc.getZeniBalance());
+        return "&a✓ Depositaste &f" + String.format("%.2f", depositedToBank) + " Zenis &aal banco. Saldo banco: &f" + String.format("%.2f", acc.getZeniBalance());
     }
 
     public String withdrawZeni(Player player, double amount) {
         if (amount <= 0) return "&cCantidad inválida.";
         BankAccount acc = getOrCreate(player);
         if (acc.getZeniBalance() < amount) return "&cFondos insuficientes en el banco.";
-        acc.setZeniBalance(acc.getZeniBalance() - amount);
+
+        double penaltyAmount = 0.0;
+        if (acc.hasZeniPenalty()) {
+            penaltyAmount = amount * acc.getZeniPenaltyRate();
+            penaltyAmount = Math.min(penaltyAmount, acc.getZeniBalance() - amount);
+            penaltyAmount = Math.max(0, penaltyAmount);
+        }
+
+        acc.setZeniBalance(acc.getZeniBalance() - amount - penaltyAmount);
+
+        if (penaltyAmount > 0) {
+            boolean anyPaid = penaltyManager.applyZeniDebtPayment(acc, penaltyAmount);
+            player.sendMessage(CC.translate("&c⚠ Penalización: &f" + String.format("%.2f", penaltyAmount) + " Zenis descontados para cubrir tu deuda."));
+            if (anyPaid) notifyLoanPaidOff(acc, LoanType.ZENIS);
+        }
+
         depositVaultZeni(player, amount);
         save(acc);
         return "&a✓ Retiraste &f" + String.format("%.2f", amount) + " Zenis &adel banco.";
@@ -99,7 +127,6 @@ public class BankManager {
         LoanRange range = optRange.get();
 
         BankAccount acc = getOrCreate(player);
-
         checkCapacityReset(acc);
 
         long activeLoanCount = acc.getLoans().stream().filter(l -> l.getType() == type && !l.isFullyPaid()).count();
@@ -217,14 +244,19 @@ public class BankManager {
         loan.setPaidAmount(loan.getPaidAmount() + amount);
         loan.setPaidInstallments(loan.getPaidInstallments() + 1);
         loan.setNextPaymentTime(System.currentTimeMillis() + loan.getIntervalMillis());
+        loan.setOverdueInterest(0.0);
+        loan.setNotifiedOverdue(false);
         if (loan.isOverdue()) loan.setOverdue(false);
         acc.recalcPenalties();
 
         if (loan.isFullyPaid()) {
             acc.getLoans().remove(loan);
             save(acc);
-            return "&a✓ ¡Préstamo &f" + loanId.substring(0, 8) + "... &apagado completamente!";
+            String msg = "&a✓ ¡Préstamo &f" + loanId.substring(0, 8) + "... &asaldado completamente!";
+            sendMail(acc, "Tu prestamo ID:" + loanId.substring(0, 8) + " ha sido saldado completamente. Gracias.");
+            return msg;
         }
+
         save(acc);
         return "&a✓ Pago de &f" + String.format("%.0f", amount) + " " + loan.getType().display()
                 + " &aregistrado. Cuotas restantes: &f" + loan.getRemainingInstallments();
@@ -233,47 +265,121 @@ public class BankManager {
     public void processScheduledPayments() {
         for (BankAccount acc : data.getAllCached()) {
             boolean changed = false;
-            for (Loan loan : new ArrayList<>(acc.getLoans())) {
-                if (loan.isFullyPaid() || !loan.isDueNow()) continue;
-                changed = true;
-                if (loan.getType() == LoanType.TPS) {
-                    long needed = (long) loan.getInstallmentAmount();
-                    if (acc.getTpsBalance() >= needed) {
-                        acc.setTpsBalance(acc.getTpsBalance() - needed);
-                        loan.advancePayment(needed);
-                        notifyPlayer(acc, "&a✓ Cuota automática de &f" + needed + " TPS &apagada. Restantes: &f" + loan.getRemainingInstallments());
-                    } else {
-                        penaltyManager.activatePenalty(acc, loan);
-                        notifyPlayer(acc, "&c⚠ No pudiste pagar tu cuota de &f" + needed + " TPS&c. ¡Penalización activa!");
-                    }
-                } else {
-                    double needed = loan.getInstallmentAmount();
-                    if (acc.getZeniBalance() >= needed) {
-                        acc.setZeniBalance(acc.getZeniBalance() - needed);
-                        loan.advancePayment(needed);
-                        notifyPlayer(acc, "&a✓ Cuota automática de &f" + String.format("%.2f", needed) + " Zenis &apagada. Restantes: &f" + loan.getRemainingInstallments());
-                    } else {
-                        penaltyManager.activatePenalty(acc, loan);
-                        notifyPlayer(acc, "&c⚠ No pudiste pagar tu cuota de &f" + String.format("%.2f", needed) + " Zenis&c. ¡Penalización activa!");
-                    }
+
+            List<Loan> dueTps  = new ArrayList<>();
+            List<Loan> dueZeni = new ArrayList<>();
+
+            for (Loan loan : acc.getLoans()) {
+                if (!loan.isFullyPaid() && loan.isDueNow()) {
+                    loan.setNotifiedOverdue(false);
+                    if (loan.getType() == LoanType.TPS) dueTps.add(loan);
+                    else dueZeni.add(loan);
                 }
-                if (loan.isFullyPaid()) acc.getLoans().remove(loan);
             }
+
+            if (!dueTps.isEmpty()) {
+                long totalNeeded = dueTps.stream()
+                        .mapToLong(l -> Math.round(l.getInstallmentAmount() + l.getOverdueInterest()))
+                        .sum();
+
+                if (acc.getTpsBalance() >= totalNeeded) {
+                    acc.setTpsBalance(acc.getTpsBalance() - totalNeeded);
+                    for (Loan loan : dueTps) {
+                        loan.advancePayment(loan.getInstallmentAmount());
+                        changed = true;
+                        if (loan.isFullyPaid()) {
+                            acc.getLoans().remove(loan);
+                            notifyPlayer(acc, "&a✓ ¡Préstamo de TPS &f" + loan.getId().substring(0, 8) + "... &asaldado completamente!");
+                            sendMail(acc, "Tu prestamo de TPS ha sido saldado completamente de forma automatica.");
+                        }
+                    }
+                    acc.recalcPenalties();
+                    notifyPlayer(acc, "&a✓ Cuota(s) TPS pagada(s) automáticamente: &f-" + totalNeeded + " TPS");
+                } else {
+                    for (Loan loan : dueTps) {
+                        double interest = loan.getInstallmentAmount() * 0.05;
+                        loan.setOverdueInterest(loan.getOverdueInterest() + interest);
+                        loan.setNextPaymentTime(loan.getNextPaymentTime() + loan.getIntervalMillis());
+                        penaltyManager.activatePenalty(acc, loan);
+                        loan.setNotifiedOverdue(true);
+                        changed = true;
+                    }
+                    acc.recalcPenalties();
+                    long totalDue = dueTps.stream().mapToLong(l -> Math.round(l.getInstallmentAmount())).sum();
+                    notifyPlayer(acc, "&c⚠ No se pudo cobrar tu cuota de &f" + totalDue + " TPS&c. Penalización activa. Usa &f/bank");
+                    sendMail(acc, "El banco intento cobrar " + totalDue + " TPS pero no tenias saldo suficiente. Se ha activado una penalizacion sobre tus ingresos de TPS.");
+                }
+            }
+
+            if (!dueZeni.isEmpty()) {
+                double totalNeeded = dueZeni.stream()
+                        .mapToDouble(l -> l.getInstallmentAmount() + l.getOverdueInterest())
+                        .sum();
+
+                if (acc.getZeniBalance() >= totalNeeded) {
+                    acc.setZeniBalance(acc.getZeniBalance() - totalNeeded);
+                    for (Loan loan : dueZeni) {
+                        loan.advancePayment(loan.getInstallmentAmount());
+                        changed = true;
+                        if (loan.isFullyPaid()) {
+                            acc.getLoans().remove(loan);
+                            notifyPlayer(acc, "&a✓ ¡Préstamo de Zenis &f" + loan.getId().substring(0, 8) + "... &asaldado completamente!");
+                            sendMail(acc, "Tu prestamo de Zenis ha sido saldado completamente de forma automatica.");
+                        }
+                    }
+                    acc.recalcPenalties();
+                    notifyPlayer(acc, "&a✓ Cuota(s) Zenis pagada(s) automáticamente: &f-" + String.format("%.2f", totalNeeded) + " Zenis");
+                } else {
+                    for (Loan loan : dueZeni) {
+                        double interest = loan.getInstallmentAmount() * 0.05;
+                        loan.setOverdueInterest(loan.getOverdueInterest() + interest);
+                        loan.setNextPaymentTime(loan.getNextPaymentTime() + loan.getIntervalMillis());
+                        penaltyManager.activatePenalty(acc, loan);
+                        loan.setNotifiedOverdue(true);
+                        changed = true;
+                    }
+                    acc.recalcPenalties();
+                    double totalDue = dueZeni.stream().mapToDouble(Loan::getInstallmentAmount).sum();
+                    notifyPlayer(acc, "&c⚠ No se pudo cobrar tu cuota de &f" + String.format("%.2f", totalDue) + " Zenis&c. Penalización activa. Usa &f/bank");
+                    sendMail(acc, "El banco intento cobrar " + String.format("%.2f", totalDue) + " Zenis pero no tenias saldo suficiente. Se ha activado una penalizacion sobre tus movimientos de Zenis.");
+                }
+            }
+
             if (changed) save(acc);
         }
     }
 
-    private void notifyPlayer(BankAccount acc, String msg) {
+    public void notifyLoanPaidOff(BankAccount acc, LoanType type) {
+        Player online = Bukkit.getPlayer(UUID.fromString(acc.getUuid()));
+        if (online != null) {
+            online.sendMessage(CC.translate("&a✓ ¡Tu deuda de " + type.display() + " ha sido saldada completamente mediante los pagos de penalización!"));
+        }
+        sendMail(acc, "Tu deuda de " + type.display() + " ha sido saldada completamente gracias a los descuentos de penalizacion.");
+    }
+
+    public void notifyPlayer(BankAccount acc, String msg) {
         Player p = Bukkit.getPlayer(UUID.fromString(acc.getUuid()));
         if (p != null) p.sendMessage(CC.translate(msg));
+    }
+
+    public void sendMail(BankAccount acc, String message) {
+        if (acc.getPlayerName() == null || acc.getPlayerName().isEmpty()) return;
+        try {
+            Bukkit.dispatchCommand(Bukkit.getConsoleSender(),
+                    "mail send " + acc.getPlayerName() + " [Banco] " + message);
+        } catch (Exception ignored) {}
     }
 
     public long applyTpsPenalty(Player player, long tpsGained) {
         return penaltyManager.applyTpsPenalty(player, tpsGained);
     }
 
-    public double applyZeniPenalty(Player player, double zeniSpent) {
-        return penaltyManager.applyZeniPenalty(player, zeniSpent);
+    public double applyZeniPenaltyOnMovement(Player player, double amount) {
+        BankAccount acc = getAccount(player.getUniqueId());
+        if (acc == null || !acc.hasZeniPenalty()) return 0.0;
+        double penalty = penaltyManager.applyZeniPenalty(player, amount);
+        save(acc);
+        return penalty;
     }
 
     public boolean hasTpsPenalty(Player player) {

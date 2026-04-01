@@ -2,6 +2,8 @@ package org.delawarex.dbz.market.commands;
 
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
+import org.delawarex.dbz.bank.manager.BankManager;
+import org.delawarex.dbz.bank.model.BankAccount;
 import org.delawarex.dbz.market.ShopManager;
 import org.delawarex.service.CC;
 import org.delawarex.service.commands.BaseCommand;
@@ -45,9 +47,35 @@ public class PayCommand extends BaseCommand {
         ShopManager mgr = ShopManager.getInstance();
         String sym = mgr.getConfig().currencySymbol;
 
+        double penaltyAmount = 0.0;
+        BankAccount senderAcc = null;
+        try {
+            senderAcc = BankManager.getInstance().getAccount(player.getUniqueId());
+            if (senderAcc != null && senderAcc.hasZeniPenalty()) {
+                penaltyAmount = amount * senderAcc.getZeniPenaltyRate();
+            }
+        } catch (Exception ignored) {}
+
+        double totalCharge = amount + penaltyAmount;
+
+        if (mgr.getEconomy().getBalance(player) < totalCharge) {
+            player.sendMessage(CC.translate("&cFondos insuficientes."));
+            return;
+        }
+
         if (!mgr.getEconomy().transfer(player, target, amount)) {
             player.sendMessage(CC.translate("&cFondos insuficientes."));
             return;
+        }
+
+        if (penaltyAmount > 0 && senderAcc != null) {
+            try {
+                mgr.getEconomy().withdraw(player, penaltyAmount);
+                boolean anyPaid = BankManager.getInstance().getPenaltyManager().applyZeniDebtPayment(senderAcc, penaltyAmount);
+                BankManager.getInstance().save(senderAcc);
+                player.sendMessage(CC.translate("&c⚠ Penalización: &f" + String.format("%.2f", penaltyAmount) + " " + sym + " &cdescontados para tu deuda bancaria."));
+                if (anyPaid) BankManager.getInstance().notifyLoanPaidOff(senderAcc, org.delawarex.dbz.bank.model.LoanType.ZENIS);
+            } catch (Exception ignored) {}
         }
 
         player.sendMessage(CC.translate("&a✓ Enviaste &f" + String.format("%.2f", amount) + " " + sym + " &aa &f" + target.getName()));

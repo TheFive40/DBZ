@@ -16,6 +16,8 @@ public class Loan {
     private long     intervalMillis;
     private boolean  overdue;
     private double   penaltyRate;
+    private boolean  notifiedOverdue;
+    private double   overdueInterest;
 
     public Loan() {}
 
@@ -33,6 +35,8 @@ public class Loan {
         this.nextPaymentTime   = System.currentTimeMillis() + this.intervalMillis;
         this.overdue           = false;
         this.penaltyRate       = penaltyRate;
+        this.notifiedOverdue   = false;
+        this.overdueInterest   = 0.0;
     }
 
     public boolean isFullyPaid() {
@@ -51,11 +55,17 @@ public class Loan {
         return System.currentTimeMillis() >= nextPaymentTime && !isFullyPaid();
     }
 
+    public double getTotalDueInstallment() {
+        return installmentAmount + overdueInterest;
+    }
+
     public void advancePayment(double amount) {
         paidAmount       += amount;
         paidInstallments += 1;
         nextPaymentTime  += intervalMillis;
         if (overdue) overdue = false;
+        overdueInterest  = 0.0;
+        notifiedOverdue  = false;
     }
 
     public String    getId()                   { return id; }
@@ -82,4 +92,8 @@ public class Loan {
     public void      setOverdue(boolean v)     { this.overdue = v; }
     public double    getPenaltyRate()          { return penaltyRate; }
     public void      setPenaltyRate(double v)  { this.penaltyRate = v; }
+    public boolean   isNotifiedOverdue()       { return notifiedOverdue; }
+    public void      setNotifiedOverdue(boolean v) { this.notifiedOverdue = v; }
+    public double    getOverdueInterest()      { return overdueInterest; }
+    public void      setOverdueInterest(double v)  { this.overdueInterest = Math.max(0, v); }
 }

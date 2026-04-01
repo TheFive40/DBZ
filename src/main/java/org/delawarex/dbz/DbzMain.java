@@ -8,6 +8,7 @@ import org.bukkit.entity.Entity;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.delawarex.dbz.advancedcrates.managers.CrateManager;
+import org.delawarex.dbz.advancedcrates.models.Crate;
 import org.delawarex.dbz.advancedcrates.storage.CrateStorage;
 import org.delawarex.dbz.bank.manager.BankConfigManager;
 import org.delawarex.dbz.bank.manager.BankManager;
@@ -68,7 +69,16 @@ public final class DbzMain extends JavaPlugin {
         scheduler.runTaskTimer(DbzMain.instance, 20L * 60, 20L * 60);
 
         PlaceHolderModule.initialize(this);
-
+        Bukkit.getScheduler().runTaskLater(this, () -> {
+            for (Crate crate : crateManager.getAll()) {
+                if (crate.getPendingWorld() != null) {
+                    var world = Bukkit.getWorld(crate.getPendingWorld());
+                    if (world != null) {
+                        crate.applyPendingLocation(world);
+                    }
+                }
+            }
+        }, 20L);
     }
 
     public CrateManager getCrateManager() {

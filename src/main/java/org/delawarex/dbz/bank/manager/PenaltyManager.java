@@ -1,10 +1,14 @@
 package org.delawarex.dbz.bank.manager;
 
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.delawarex.dbz.bank.model.BankAccount;
 import org.delawarex.dbz.bank.model.Loan;
 import org.delawarex.dbz.bank.model.LoanType;
 import org.delawarex.service.CC;
+
+import java.util.ArrayList;
+import java.util.UUID;
 
 public class PenaltyManager {
 
@@ -18,44 +22,56 @@ public class PenaltyManager {
         BankAccount acc = manager.getAccount(player.getUniqueId());
         if (acc == null || !acc.hasTpsPenalty()) return tpsGained;
 
-        double rate     = acc.getTpsPenaltyRate();
-        long   penalty  = (long) Math.ceil(tpsGained * rate);
-        long   received = tpsGained - penalty;
+        double rate    = acc.getTpsPenaltyRate();
+        long   penalty = (long) Math.ceil(tpsGained * rate);
+        long   received = Math.max(0, tpsGained - penalty);
 
-        applyTpsDebtPayment(acc, penalty);
+        boolean anyPaid = applyTpsDebtPayment(acc, penalty);
         manager.save(acc);
 
-        player.sendMessage(CC.translate("&c⚠ Penalización activa: &f-" + penalty + " TPS &8(" + (int)(rate*100) + "%) &capplicados a tu deuda."));
-        return Math.max(0, received);
+        player.sendMessage(CC.translate("&c⚠ Penalización activa: &f-" + penalty + " TPS &8(" + (int)(rate*100) + "%) &caplicados a tu deuda."));
+
+        if (anyPaid) {
+            manager.notifyLoanPaidOff(acc, LoanType.TPS);
+        }
+
+        return received;
     }
 
-    public double applyZeniPenalty(Player player, double zenisSpent) {
+    public double applyZeniPenalty(Player player, double amount) {
         BankAccount acc = manager.getAccount(player.getUniqueId());
-        if (acc == null || !acc.hasZeniPenalty()) return zenisSpent;
+        if (acc == null || !acc.hasZeniPenalty()) return 0.0;
 
         double rate    = acc.getZeniPenaltyRate();
-        double extra   = zenisSpent * rate;
-        double total   = zenisSpent + extra;
+        double penalty = amount * rate;
 
-        applyZeniDebtPayment(acc, extra);
+        boolean anyPaid = applyZeniDebtPayment(acc, penalty);
         manager.save(acc);
 
-        player.sendMessage(CC.translate("&c⚠ Penalización activa: &f+" + String.format("%.2f", extra) + " Zenis &8(" + (int)(rate*100) + "%) &caplicados a tu deuda."));
-        return total;
+        player.sendMessage(CC.translate("&c⚠ Penalización activa: &f" + String.format("%.2f", penalty) + " Zenis &8(" + (int)(rate*100) + "%) &caplicados a tu deuda."));
+
+        if (anyPaid) {
+            manager.notifyLoanPaidOff(acc, LoanType.ZENIS);
+        }
+
+        return penalty;
     }
 
-    private void applyTpsDebtPayment(BankAccount acc, long amount) {
+    public boolean applyTpsDebtPayment(BankAccount acc, long amount) {
         long remaining = amount;
-        for (Loan loan : acc.getLoans()) {
+        boolean anyFullyPaid = false;
+
+        for (Loan loan : new ArrayList<>(acc.getLoans())) {
             if (loan.getType() != LoanType.TPS || !loan.isOverdue()) continue;
-            double needed = loan.getInstallmentAmount() - (loan.getPaidAmount() % loan.getInstallmentAmount());
+            double needed = loan.getTotalDueInstallment();
             if (needed <= 0) needed = loan.getInstallmentAmount();
-            if (remaining >= needed) {
-                loan.advancePayment(needed);
-                remaining -= (long) needed;
+
+            if (remaining >= (long) Math.ceil(needed)) {
+                loan.advancePayment(loan.getInstallmentAmount());
+                remaining -= (long) Math.ceil(needed);
                 if (loan.isFullyPaid()) {
                     acc.getLoans().remove(loan);
-                    break;
+                    anyFullyPaid = true;
                 }
             } else {
                 loan.setPaidAmount(loan.getPaidAmount() + remaining);
@@ -63,21 +79,26 @@ public class PenaltyManager {
             }
             if (remaining <= 0) break;
         }
+
         acc.recalcPenalties();
+        return anyFullyPaid;
     }
 
-    private void applyZeniDebtPayment(BankAccount acc, double amount) {
+    public boolean applyZeniDebtPayment(BankAccount acc, double amount) {
         double remaining = amount;
-        for (Loan loan : acc.getLoans()) {
+        boolean anyFullyPaid = false;
+
+        for (Loan loan : new ArrayList<>(acc.getLoans())) {
             if (loan.getType() != LoanType.ZENIS || !loan.isOverdue()) continue;
-            double needed = loan.getInstallmentAmount() - (loan.getPaidAmount() % loan.getInstallmentAmount());
+            double needed = loan.getTotalDueInstallment();
             if (needed <= 0) needed = loan.getInstallmentAmount();
+
             if (remaining >= needed) {
-                loan.advancePayment(needed);
+                loan.advancePayment(loan.getInstallmentAmount());
                 remaining -= needed;
                 if (loan.isFullyPaid()) {
                     acc.getLoans().remove(loan);
-                    break;
+                    anyFullyPaid = true;
                 }
             } else {
                 loan.setPaidAmount(loan.getPaidAmount() + remaining);
@@ -85,7 +106,9 @@ public class PenaltyManager {
             }
             if (remaining <= 0) break;
         }
+
         acc.recalcPenalties();
+        return anyFullyPaid;
     }
 
     public void activatePenalty(BankAccount acc, Loan loan) {
@@ -94,7 +117,11 @@ public class PenaltyManager {
     }
 
     public void clearAllPenalties(BankAccount acc) {
-        acc.getLoans().forEach(l -> l.setOverdue(false));
+        acc.getLoans().forEach(l -> {
+            l.setOverdue(false);
+            l.setNotifiedOverdue(false);
+            l.setOverdueInterest(0.0);
+        });
         acc.setTpsPenaltyRate(0);
         acc.setZeniPenaltyRate(0);
     }

@@ -3,11 +3,15 @@ package org.delawarex.dbz.market.engine;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.delawarex.dbz.bank.manager.BankManager;
+import org.delawarex.dbz.bank.model.BankAccount;
+import org.delawarex.dbz.bank.model.LoanType;
 import org.delawarex.dbz.market.model.MarketEvent;
 import org.delawarex.dbz.market.model.MarketItem;
 import org.delawarex.dbz.market.model.Transaction;
 import org.delawarex.dbz.market.storage.EconomyManager;
 import org.delawarex.dbz.market.storage.MarketDataManager;
+import org.delawarex.service.CC;
 
 public class TransactionEngine {
 
@@ -53,6 +57,8 @@ public class TransactionEngine {
         item.addToHistory(tx);
         data.saveItem(item);
 
+        applyZeniPenaltyOnPurchase(player, total);
+
         return TransactionResult.ok(total, quantity, perUnit);
     }
 
@@ -80,7 +86,39 @@ public class TransactionEngine {
         item.addToHistory(tx);
         data.saveItem(item);
 
+        applyZeniPenaltyOnSale(player, total);
+
         return TransactionResult.ok(total, quantity, perUnit);
+    }
+
+    private void applyZeniPenaltyOnPurchase(Player player, double amount) {
+        try {
+            BankAccount acc = BankManager.getInstance().getAccount(player.getUniqueId());
+            if (acc == null || !acc.hasZeniPenalty()) return;
+            double penaltyAmount = amount * acc.getZeniPenaltyRate();
+            if (penaltyAmount <= 0) return;
+            if (economy.withdraw(player, penaltyAmount)) {
+                boolean anyPaid = BankManager.getInstance().getPenaltyManager().applyZeniDebtPayment(acc, penaltyAmount);
+                BankManager.getInstance().save(acc);
+                player.sendMessage(CC.translate("&c⚠ Penalización: &f" + String.format("%.2f", penaltyAmount) + " Zenis descontados de tu compra para cubrir tu deuda."));
+                if (anyPaid) BankManager.getInstance().notifyLoanPaidOff(acc, LoanType.ZENIS);
+            }
+        } catch (Exception ignored) {}
+    }
+
+    private void applyZeniPenaltyOnSale(Player player, double amount) {
+        try {
+            BankAccount acc = BankManager.getInstance().getAccount(player.getUniqueId());
+            if (acc == null || !acc.hasZeniPenalty()) return;
+            double penaltyAmount = amount * acc.getZeniPenaltyRate();
+            if (penaltyAmount <= 0) return;
+            if (economy.withdraw(player, penaltyAmount)) {
+                boolean anyPaid = BankManager.getInstance().getPenaltyManager().applyZeniDebtPayment(acc, penaltyAmount);
+                BankManager.getInstance().save(acc);
+                player.sendMessage(CC.translate("&c⚠ Penalización: &f" + String.format("%.2f", penaltyAmount) + " Zenis de tu venta aplicados a tu deuda bancaria."));
+                if (anyPaid) BankManager.getInstance().notifyLoanPaidOff(acc, LoanType.ZENIS);
+            }
+        } catch (Exception ignored) {}
     }
 
     private void giveItems(Player player, MarketItem item, int quantity) {

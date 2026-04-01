@@ -60,6 +60,7 @@ public class CrateStorage {
             config.set(base + ".location.z", loc.getZ());
             config.set(base + ".location.yaw", (double) loc.getYaw());
             config.set(base + ".location.pitch", (double) loc.getPitch());
+        } else if (crate.hasPendingLocation()) {
         } else {
             config.set(base + ".location", null);
         }
@@ -115,17 +116,21 @@ public class CrateStorage {
         if (config.contains(base + ".location.world")) {
             try {
                 String worldName = config.getString(base + ".location.world", "");
-                World world = worldName.isEmpty() ? null : Bukkit.getWorld(worldName);
-                if (world != null) {
+                if (!worldName.isEmpty()) {
                     double x = config.getDouble(base + ".location.x");
                     double y = config.getDouble(base + ".location.y");
                     double z = config.getDouble(base + ".location.z");
                     float yaw = (float) config.getDouble(base + ".location.yaw", 0.0);
                     float pitch = (float) config.getDouble(base + ".location.pitch", 0.0);
-                    crate.setPhysicalLocation(new Location(world, x, y, z, yaw, pitch));
-                } else if (!worldName.isEmpty()) {
-                    DbzMain.instance.getLogger().warning(
-                            "[Crates] Mundo '" + worldName + "' no encontrado para crate: " + id);
+
+                    World world = Bukkit.getWorld(worldName);
+                    if (world != null) {
+                        crate.setPhysicalLocation(new Location(world, x, y, z, yaw, pitch));
+                    } else {
+                        crate.setPendingLocation(worldName, x, y, z, yaw, pitch);
+                        DbzMain.instance.getLogger().info(
+                                "[Crates] Mundo '" + worldName + "' no cargado aun para crate '" + id + "'. Se resolverá automáticamente cuando se cargue.");
+                    }
                 }
             } catch (Exception e) {
                 e.printStackTrace();
