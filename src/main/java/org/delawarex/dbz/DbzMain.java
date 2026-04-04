@@ -12,6 +12,7 @@ import org.delawarex.dbz.advancedcrates.models.Crate;
 import org.delawarex.dbz.advancedcrates.storage.CrateStorage;
 import org.delawarex.dbz.bank.manager.BankConfigManager;
 import org.delawarex.dbz.bank.manager.BankManager;
+import org.delawarex.dbz.battlepass.BattlePassModule;
 import org.delawarex.dbz.customitems.CustomItemsModule;
 import org.delawarex.dbz.fragments.FragmentsModule;
 import org.delawarex.dbz.placeholder.PlaceHolderModule;
@@ -58,6 +59,7 @@ public final class DbzMain extends JavaPlugin {
         CustomItemsModule.enable();
         removeAllHolograms();
         FragmentsModule.enable();
+        BattlePassModule.enable();
         crateManager = new CrateManager(storage);
         crateManager.loadAll();
         scheduler = new BukkitRunnable() {
@@ -99,8 +101,8 @@ public final class DbzMain extends JavaPlugin {
         }
         HOLOGRAMS.clear();
         FragmentsModule.disable();
+        BattlePassModule.disable();
         PlaceHolderModule.shutdown();
-
     }
 
     public CommandFramework getCommandFramework() {
@@ -120,7 +122,6 @@ public final class DbzMain extends JavaPlugin {
             for (Entity entity : world.getEntities()) {
                 if (entity instanceof ArmorStand) {
                     ArmorStand as = (ArmorStand) entity;
-
                     if (as.isMarker() && as.getCustomName() != null) {
                         as.remove();
                     }
