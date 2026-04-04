@@ -185,7 +185,7 @@ public class General {
             ref.total = statsData.getResources().getTrainingPoints();
             NetworkHandler.sendToTrackingEntityAndSelf(new StatsSyncS2C(serverPlayer), serverPlayer);
         }));
-        player.sendMessage(CC.translate("&a&l✓ &eHas recibido &6+" + amount + " TPs&e."));
+        player.sendMessage(CC.translate("&8[&a&l✓&9] &eHas recibido &6+" + amount + " TPs&e."));
         player.playSound(player, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 10f, 10f);
     }
 

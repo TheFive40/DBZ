@@ -18,6 +18,7 @@ public class Loan {
     private double   penaltyRate;
     private boolean  notifiedOverdue;
     private double   overdueInterest;
+    private long     graceDeadline;
 
     public Loan() {}
 
@@ -37,6 +38,7 @@ public class Loan {
         this.penaltyRate       = penaltyRate;
         this.notifiedOverdue   = false;
         this.overdueInterest   = 0.0;
+        this.graceDeadline     = 0;
     }
 
     public boolean isFullyPaid() {
@@ -66,6 +68,7 @@ public class Loan {
         if (overdue) overdue = false;
         overdueInterest  = 0.0;
         notifiedOverdue  = false;
+        graceDeadline    = 0;
     }
 
     public String    getId()                   { return id; }
@@ -96,4 +99,6 @@ public class Loan {
     public void      setNotifiedOverdue(boolean v) { this.notifiedOverdue = v; }
     public double    getOverdueInterest()      { return overdueInterest; }
     public void      setOverdueInterest(double v)  { this.overdueInterest = Math.max(0, v); }
+    public long      getGraceDeadline()        { return graceDeadline; }
+    public void      setGraceDeadline(long v)  { this.graceDeadline = v; }
 }

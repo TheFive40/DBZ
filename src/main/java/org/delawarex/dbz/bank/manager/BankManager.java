@@ -10,6 +10,7 @@ import org.delawarex.dbz.bank.model.*;
 import org.delawarex.dbz.bank.storage.BankDataManager;
 import org.delawarex.service.CC;
 
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -246,7 +247,8 @@ public class BankManager {
         loan.setNextPaymentTime(System.currentTimeMillis() + loan.getIntervalMillis());
         loan.setOverdueInterest(0.0);
         loan.setNotifiedOverdue(false);
-        if (loan.isOverdue()) loan.setOverdue(false);
+        loan.setOverdue(false);
+        loan.setGraceDeadline(0);
         acc.recalcPenalties();
 
         if (loan.isFullyPaid()) {
@@ -263,6 +265,9 @@ public class BankManager {
     }
 
     public void processScheduledPayments() {
+        SimpleDateFormat fmt = new SimpleDateFormat("dd/MM HH:mm");
+        long now = System.currentTimeMillis();
+
         for (BankAccount acc : data.getAllCached()) {
             boolean changed = false;
 
@@ -271,7 +276,6 @@ public class BankManager {
 
             for (Loan loan : acc.getLoans()) {
                 if (!loan.isFullyPaid() && loan.isDueNow()) {
-                    loan.setNotifiedOverdue(false);
                     if (loan.getType() == LoanType.TPS) dueTps.add(loan);
                     else dueZeni.add(loan);
                 }
@@ -285,6 +289,7 @@ public class BankManager {
                 if (acc.getTpsBalance() >= totalNeeded) {
                     acc.setTpsBalance(acc.getTpsBalance() - totalNeeded);
                     for (Loan loan : dueTps) {
+                        loan.setGraceDeadline(0);
                         loan.advancePayment(loan.getInstallmentAmount());
                         changed = true;
                         if (loan.isFullyPaid()) {
@@ -297,17 +302,28 @@ public class BankManager {
                     notifyPlayer(acc, "&a✓ Cuota(s) TPS pagada(s) automáticamente: &f-" + totalNeeded + " TPS");
                 } else {
                     for (Loan loan : dueTps) {
-                        double interest = loan.getInstallmentAmount() * 0.05;
-                        loan.setOverdueInterest(loan.getOverdueInterest() + interest);
-                        loan.setNextPaymentTime(loan.getNextPaymentTime() + loan.getIntervalMillis());
-                        penaltyManager.activatePenalty(acc, loan);
-                        loan.setNotifiedOverdue(true);
-                        changed = true;
+                        if (loan.getGraceDeadline() == 0) {
+                            long graceEnd = now + 86400000L;
+                            loan.setGraceDeadline(graceEnd);
+                            changed = true;
+                            String deadline = fmt.format(new Date(graceEnd));
+                            long installment = Math.round(loan.getInstallmentAmount());
+                            notifyPlayer(acc, "&e⚠ Tienes una cuota de &f" + installment + " TPS &evencida. Tienes hasta &f" + deadline + " &epara pagarla (50% mínimo). Si no pagas, se activará una penalización.");
+                            sendMail(acc, "Tienes una cuota de " + installment + " TPS vencida. Tienes hasta " + deadline + " para realizar el pago (minimo el 50%, que seria " + (installment / 2) + " TPS). Usa /bank para pagar. Si no lo haces, se activara una penalizacion sobre tus TPS.");
+                        } else if (now >= loan.getGraceDeadline()) {
+                            double interest = loan.getInstallmentAmount() * 0.05;
+                            loan.setOverdueInterest(loan.getOverdueInterest() + interest);
+                            loan.setNextPaymentTime(loan.getNextPaymentTime() + loan.getIntervalMillis());
+                            loan.setGraceDeadline(0);
+                            penaltyManager.activatePenalty(acc, loan);
+                            loan.setNotifiedOverdue(true);
+                            changed = true;
+                            long installment = Math.round(loan.getInstallmentAmount());
+                            notifyPlayer(acc, "&c⚠ No pagaste tu cuota de &f" + installment + " TPS &ca tiempo. Se ha activado una penalización del &f" + (int)(loan.getPenaltyRate() * 100) + "% &csobre tus TPS. Usa &f/bank &cpara pagar.");
+                            sendMail(acc, "No pagaste tu cuota de " + installment + " TPS a tiempo. Se ha activado una penalizacion del " + (int)(loan.getPenaltyRate() * 100) + "% sobre tus TPS. Usa /bank para realizar el pago lo antes posible y eliminar la penalizacion.");
+                        }
                     }
                     acc.recalcPenalties();
-                    long totalDue = dueTps.stream().mapToLong(l -> Math.round(l.getInstallmentAmount())).sum();
-                    notifyPlayer(acc, "&c⚠ No se pudo cobrar tu cuota de &f" + totalDue + " TPS&c. Penalización activa. Usa &f/bank");
-                    sendMail(acc, "El banco intento cobrar " + totalDue + " TPS pero no tenias saldo suficiente. Se ha activado una penalizacion sobre tus ingresos de TPS.");
                 }
             }
 
@@ -319,6 +335,7 @@ public class BankManager {
                 if (acc.getZeniBalance() >= totalNeeded) {
                     acc.setZeniBalance(acc.getZeniBalance() - totalNeeded);
                     for (Loan loan : dueZeni) {
+                        loan.setGraceDeadline(0);
                         loan.advancePayment(loan.getInstallmentAmount());
                         changed = true;
                         if (loan.isFullyPaid()) {
@@ -331,17 +348,28 @@ public class BankManager {
                     notifyPlayer(acc, "&a✓ Cuota(s) Zenis pagada(s) automáticamente: &f-" + String.format("%.2f", totalNeeded) + " Zenis");
                 } else {
                     for (Loan loan : dueZeni) {
-                        double interest = loan.getInstallmentAmount() * 0.05;
-                        loan.setOverdueInterest(loan.getOverdueInterest() + interest);
-                        loan.setNextPaymentTime(loan.getNextPaymentTime() + loan.getIntervalMillis());
-                        penaltyManager.activatePenalty(acc, loan);
-                        loan.setNotifiedOverdue(true);
-                        changed = true;
+                        if (loan.getGraceDeadline() == 0) {
+                            long graceEnd = now + 86400000L;
+                            loan.setGraceDeadline(graceEnd);
+                            changed = true;
+                            String deadline = fmt.format(new Date(graceEnd));
+                            double installment = loan.getInstallmentAmount();
+                            notifyPlayer(acc, "&e⚠ Tienes una cuota de &f" + String.format("%.2f", installment) + " Zenis &evencida. Tienes hasta &f" + deadline + " &epara pagarla (50% mínimo). Si no pagas, se activará una penalización.");
+                            sendMail(acc, "Tienes una cuota de " + String.format("%.2f", installment) + " Zenis vencida. Tienes hasta " + deadline + " para realizar el pago (minimo el 50%, que seria " + String.format("%.2f", installment / 2) + " Zenis). Usa /bank para pagar. Si no lo haces, se activara una penalizacion sobre tus Zenis.");
+                        } else if (now >= loan.getGraceDeadline()) {
+                            double interest = loan.getInstallmentAmount() * 0.05;
+                            loan.setOverdueInterest(loan.getOverdueInterest() + interest);
+                            loan.setNextPaymentTime(loan.getNextPaymentTime() + loan.getIntervalMillis());
+                            loan.setGraceDeadline(0);
+                            penaltyManager.activatePenalty(acc, loan);
+                            loan.setNotifiedOverdue(true);
+                            changed = true;
+                            double installment = loan.getInstallmentAmount();
+                            notifyPlayer(acc, "&c⚠ No pagaste tu cuota de &f" + String.format("%.2f", installment) + " Zenis &ca tiempo. Se ha activado una penalización del &f" + (int)(loan.getPenaltyRate() * 100) + "% &csobre tus Zenis. Usa &f/bank &cpara pagar.");
+                            sendMail(acc, "No pagaste tu cuota de " + String.format("%.2f", installment) + " Zenis a tiempo. Se ha activado una penalizacion del " + (int)(loan.getPenaltyRate() * 100) + "% sobre tus Zenis. Usa /bank para realizar el pago lo antes posible y eliminar la penalizacion.");
+                        }
                     }
                     acc.recalcPenalties();
-                    double totalDue = dueZeni.stream().mapToDouble(Loan::getInstallmentAmount).sum();
-                    notifyPlayer(acc, "&c⚠ No se pudo cobrar tu cuota de &f" + String.format("%.2f", totalDue) + " Zenis&c. Penalización activa. Usa &f/bank");
-                    sendMail(acc, "El banco intento cobrar " + String.format("%.2f", totalDue) + " Zenis pero no tenias saldo suficiente. Se ha activado una penalizacion sobre tus movimientos de Zenis.");
                 }
             }
 

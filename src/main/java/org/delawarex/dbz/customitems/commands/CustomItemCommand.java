@@ -20,7 +20,7 @@ import java.util.List;
 
 public class CustomItemCommand extends BaseCommand {
 
-    @Command(name = "ci", permission = "dbz.admin.ci")
+    @Command(name = "ci", permission = "dbz.admin.ci", aliases = {"customitem", "customitems"})
     @Override
     public void onCommand(CommandArgs args) throws IOException {
         if (!args.isPlayer()) return;

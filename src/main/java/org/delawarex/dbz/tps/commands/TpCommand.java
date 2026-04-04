@@ -21,7 +21,8 @@ public class TpCommand extends BaseCommand {
         int amount = 0;
         try {
             amount = Integer.parseInt(command.getArgs(1));
-        } catch (NumberFormatException ignored) {}
+        } catch (NumberFormatException ignored) {
+        }
 
         if (amount <= 0) return;
 
@@ -33,10 +34,9 @@ public class TpCommand extends BaseCommand {
                 if (BankManager.getInstance().hasTpsPenalty(target)) {
                     finalAmount = BankManager.getInstance().applyTpsPenalty(target, amount);
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
             General.addTp(username, (int) Math.max(0, finalAmount));
-        } else {
-            General.addTp(username, amount);
         }
     }
 }
