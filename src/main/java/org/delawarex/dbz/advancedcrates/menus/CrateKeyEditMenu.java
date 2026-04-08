@@ -29,7 +29,7 @@ public class CrateKeyEditMenu extends Menu {
                 "&7Actual: &f" + CC.strip(crate.getKeyDisplayName()),
                 "&7Soporta &ccolores &7con &",
                 "", "&a[CLICK]"),
-                e -> ChatInputManager.await(player, "Nuevo nombre de la llave (soporta &colores):", (p, txt) -> {
+                e -> ChatInputManager.await(player, "Nuevo nombre de la llave (soporta &ccolores):", (p, txt) -> {
                     crate.setKeyDisplayName(txt);
                     mgr.saveCrate(crate);
                     p.sendMessage(CC.translate("&a\u2713 Nombre de llave actualizado."));

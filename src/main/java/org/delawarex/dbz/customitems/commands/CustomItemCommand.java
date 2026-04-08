@@ -63,12 +63,13 @@ public class CustomItemCommand extends BaseCommand {
         id = id.toLowerCase();
         if (CustomItemManager.getInstance().exists(id)) { player.sendMessage(CC.translate("&8[&c&l!&8] &cYa existe un item con ese ID: &f" + id)); return; }
         ItemStack hand = player.getInventory().getItemInMainHand();
-        if (hand == null || hand.getType() == Material.AIR) { player.sendMessage(CC.translate("&8[&c&l!&8] &cSostén un item en la mano.")); return; }
+        String matName = CustomItemManager.getMaterialName(hand);
+        if (matName.equals("minecraft:air")) { player.sendMessage(CC.translate("&8[&c&l!&8] &cSostén un item en la mano.")); return; }
         String displayName = ""; List<String> lore = new ArrayList<>();
         if (hand.hasItemMeta()) { ItemMeta m = hand.getItemMeta(); if (m != null) { if (m.hasDisplayName()) displayName = m.getDisplayName(); if (m.hasLore() && m.getLore() != null) lore = m.getLore(); } }
-        CustomItem ci = new CustomItem().setId(id).setMaterial(hand.getType().name()).setDisplayName(displayName).setLore(lore);
+        CustomItem ci = new CustomItem().setId(id).setMaterial(matName).setDisplayName(displayName).setLore(lore);
         CustomItemManager.getInstance().register(ci);
-        player.sendMessage(CC.translate("&8[&a&l✔&8] &aItem &f" + id + " &aregistrado (&f" + hand.getType().name() + "&a)."));
+        player.sendMessage(CC.translate("&8[&a&l✔&8] &aItem &f" + id + " &aregistrado (&f" + matName + "&a)."));
     }
 
     private void giveItem(Player player, String id, String targetName, String amountStr) {

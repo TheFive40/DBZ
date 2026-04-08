@@ -1,6 +1,5 @@
 package org.delawarex.dbz.tps.commands;
 
-import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -60,7 +59,16 @@ public class RegisterTpCommand extends BaseCommand {
                 try {
                     int amount = Integer.parseInt(command.getArgs(1));
                     ItemStack item = player.getInventory().getItemInMainHand();
-                    if (item == null || item.getType() == Material.AIR) {
+
+                    boolean isEmpty;
+                    try {
+                        net.minecraft.world.item.ItemStack nmsItem = org.bukkit.craftbukkit.v1_20_R1.inventory.CraftItemStack.asNMSCopy(item);
+                        isEmpty = nmsItem.isEmpty();
+                    } catch (Exception e) {
+                        isEmpty = (item == null || item.getType() == org.bukkit.Material.AIR);
+                    }
+
+                    if (isEmpty) {
                         player.sendMessage(CC.translate("&8[&c&l!&8] &cSostén el item que quieres registrar en la mano."));
                         player.playSound(player, Sound.ENTITY_CAT_HURT, 1.0f, 1.0f);
                         break;
@@ -86,7 +94,7 @@ public class RegisterTpCommand extends BaseCommand {
                     toRegister.setItemMeta(meta);
 
                     tpManager.add(amount, toRegister);
-                    player.sendMessage(CC.translate("&8[&a&l✔&8] &aTP de &6+" + amount + " &aregistrado como &f" + toRegister.getType().name() + "&a."));
+                    player.sendMessage(CC.translate("&8[&a&l✔&8] &aTP de &6+" + amount + " &aregistrado correctamente."));
                     player.playSound(player, Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
 
                 } catch (Exception e) {

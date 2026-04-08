@@ -133,12 +133,12 @@ public class BattlePassManager {
         for (int lvl = oldLevel + 1; lvl <= newLevel; lvl++) {
             BattlePassLevel level = pass.getLevelByNumber(lvl);
             String levelName = level != null ? CC.strip(level.getDisplayName()) : "Nivel " + lvl;
-            player.sendMessage(CC.translate("&8&m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"));
+            player.sendMessage(CC.translate("&8&m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"));
             player.sendMessage(CC.translate("&6&l    ⭐ PASE DE BATALLA: NIVEL UP ⭐"));
             player.sendMessage(CC.translate("&7  Pase: &f" + CC.strip(pass.getDisplayName())));
             player.sendMessage(CC.translate("&7  Nuevo nivel: &e&l" + levelName));
             player.sendMessage(CC.translate("&7  Usa &f/pass &7para reclamar tus recompensas."));
-            player.sendMessage(CC.translate("&8&m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"));
+            player.sendMessage(CC.translate("&8&m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"));
         }
         BattlePassLevel topLevel = pass.getLevelByNumber(newLevel);
         String topName = topLevel != null ? CC.strip(topLevel.getDisplayName()) : "Nivel " + newLevel;

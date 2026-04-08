@@ -69,7 +69,7 @@ public class BattlePassAdminMenu extends Menu {
                         "&a&lCrear Pase de Batalla",
                         "&7Crea un nuevo pase personalizado",
                         "", "&a[CLICK]"),
-                e -> ChatInput.await(player, "Nombre del nuevo pase (soporta &colores):", (p, name) -> {
+                e -> ChatInput.await(player, "Nombre del nuevo pase (soporta &ccolores):", (p, name) -> {
                     if (name.trim().isEmpty()) {
                         p.sendMessage(CC.translate("&cNombre inválido."));
                         new BattlePassAdminMenu(1).open(p);

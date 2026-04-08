@@ -1,6 +1,10 @@
 package org.delawarex.dbz.customitems.managers;
 
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.Items;
+import net.minecraftforge.registries.ForgeRegistries;
 import org.bukkit.Material;
+import org.bukkit.craftbukkit.v1_20_R1.inventory.CraftItemStack;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.delawarex.dbz.customitems.models.CustomItem;
@@ -45,9 +49,9 @@ public class CustomItemManager {
         return true;
     }
 
-    public CustomItem get(String id)       { return items.get(id); }
-    public boolean    exists(String id)    { return items.containsKey(id); }
-    public Map<String, CustomItem> getAll(){ return Collections.unmodifiableMap(items); }
+    public CustomItem get(String id)        { return items.get(id); }
+    public boolean    exists(String id)     { return items.containsKey(id); }
+    public Map<String, CustomItem> getAll() { return Collections.unmodifiableMap(items); }
 
     public List<String> getSortedIds() {
         List<String> ids = new ArrayList<>(items.keySet());
@@ -55,16 +59,27 @@ public class CustomItemManager {
         return ids;
     }
 
-    public ItemStack buildItemStack(CustomItem item) {
-        Material mat = parseMaterial(item.getMaterial(), Material.STONE);
+    public static String getMaterialName(ItemStack stack) {
+        if (stack == null) return "minecraft:air";
+        try {
+            net.minecraft.world.item.ItemStack nms = CraftItemStack.asNMSCopy(stack);
+            if (!nms.isEmpty()) {
+                ResourceLocation rl = ForgeRegistries.ITEMS.getKey(nms.getItem());
+                if (rl != null) return rl.toString().toLowerCase();
+            }
+        } catch (Exception ignored) {}
+        if (stack.getType() == Material.AIR) return "minecraft:air";
+        return "minecraft:" + stack.getType().name().toLowerCase();
+    }
 
-        ItemStack stack = new ItemStack(mat, 1);
+    public ItemStack buildItemStack(CustomItem item) {
+        ItemStack stack = buildBaseStack(item.getMaterial(), 1);
         ItemMeta meta = stack.getItemMeta();
         if (meta == null) return stack;
 
         String display = (item.getDisplayName() != null && !item.getDisplayName().isEmpty())
                 ? CC.translate(item.getDisplayName())
-                : org.bukkit.ChatColor.WHITE + mat.name();
+                : org.bukkit.ChatColor.WHITE + item.getMaterial();
         meta.setDisplayName(display);
 
         if (item.getLore() != null && !item.getLore().isEmpty()) {
@@ -75,7 +90,6 @@ public class CustomItemManager {
         }
 
         meta.setUnbreakable(item.isUnbreakable());
-
         stack.setItemMeta(meta);
 
         if (item.getMaxDurability() > 0) {
@@ -86,9 +100,10 @@ public class CustomItemManager {
     }
 
     public CustomItem identify(ItemStack stack) {
-        if (stack == null || stack.getType() == Material.AIR) return null;
+        if (stack == null) return null;
 
-        String matName = stack.getType().name();
+        String registryName = getRegistryName(stack);
+        if (registryName.equals("minecraft:air")) return null;
 
         String displayName = "";
         List<String> lore  = new ArrayList<>();
@@ -108,11 +123,11 @@ public class CustomItemManager {
             }
         }
 
-        CustomItem best     = null;
-        int        bestScore = -1;
+        CustomItem best      = null;
+        int         bestScore = -1;
 
         for (CustomItem item : items.values()) {
-            if (!matName.equalsIgnoreCase(item.getMaterial())) continue;
+            if (!registryName.equalsIgnoreCase(normalizeItemName(item.getMaterial()))) continue;
 
             int score = 0;
 
@@ -141,13 +156,42 @@ public class CustomItemManager {
         return best;
     }
 
-    private Material parseMaterial(String name, Material fallback) {
-        if (name == null || name.isEmpty()) return fallback;
-        try {
-            return Material.valueOf(name.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            return fallback;
+    private ItemStack buildBaseStack(String materialName, int amount) {
+        if (materialName != null && materialName.contains(":")) {
+            try {
+                ResourceLocation rl = new ResourceLocation(materialName.toLowerCase());
+                net.minecraft.world.item.Item forgeItem = ForgeRegistries.ITEMS.getValue(rl);
+                if (forgeItem != null && forgeItem != Items.AIR) {
+                    net.minecraft.world.item.ItemStack nms = new net.minecraft.world.item.ItemStack(forgeItem, amount);
+                    return CraftItemStack.asBukkitCopy(nms);
+                }
+            } catch (Exception ignored) {}
+            return new ItemStack(Material.STONE, amount);
         }
+        if (materialName != null && !materialName.isEmpty()) {
+            try {
+                return new ItemStack(Material.valueOf(materialName.toUpperCase()), amount);
+            } catch (IllegalArgumentException ignored) {}
+        }
+        return new ItemStack(Material.STONE, amount);
+    }
+
+    private String getRegistryName(ItemStack stack) {
+        if (stack == null) return "minecraft:air";
+        try {
+            net.minecraft.world.item.ItemStack nms = CraftItemStack.asNMSCopy(stack);
+            if (nms.isEmpty()) return "minecraft:air";
+            ResourceLocation rl = ForgeRegistries.ITEMS.getKey(nms.getItem());
+            if (rl != null) return rl.toString().toLowerCase();
+        } catch (Exception ignored) {}
+        if (stack.getType() == Material.AIR) return "minecraft:air";
+        return "minecraft:" + stack.getType().name().toLowerCase();
+    }
+
+    private String normalizeItemName(String material) {
+        if (material == null || material.isEmpty()) return "";
+        if (material.contains(":")) return material.toLowerCase();
+        return "minecraft:" + material.toLowerCase();
     }
 
     public CustomItemStorage getStorage() { return storage; }
